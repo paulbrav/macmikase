@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# macmikase-update - Updates all installed software and system components on macOS
+set -euo pipefail
+
+echo "==> Starting macmikase system update..."
+echo ""
+
+# ------------------------------------------------------------------------------
+# Homebrew
+# ------------------------------------------------------------------------------
+
+if command -v brew &>/dev/null; then
+    echo "==> Updating Homebrew packages..."
+    brew update
+    brew upgrade
+    brew cleanup
+else
+    echo "Warning: Homebrew not found. Skipping brew updates."
+fi
+
+# ------------------------------------------------------------------------------
+# Runtimes & Package Managers
+# ------------------------------------------------------------------------------
+
+if command -v rustup &>/dev/null; then
+    echo ""
+    echo "==> Updating Rust toolchain..."
+    rustup update
+fi
+
+if command -v uv &>/dev/null; then
+    echo ""
+    echo "==> Updating uv and tools..."
+    uv self update || echo "  (uv self update not available - may be system-installed)"
+    uv tool upgrade --all || true
+fi
+
+if command -v bun &>/dev/null; then
+    echo ""
+    echo "==> Updating Bun..."
+    bun upgrade
+fi
+
+if command -v juliaup &>/dev/null; then
+    echo ""
+    echo "==> Updating Julia..."
+    juliaup update
+fi
+
+if command -v npm &>/dev/null; then
+    echo ""
+    echo "==> Updating global NPM packages..."
+    npm update -g || true
+fi
+
+echo ""
+echo "==> Update complete!"

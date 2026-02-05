@@ -1,0 +1,190 @@
+#!/usr/bin/env bash
+# macmikase-theme - Switch themes using chezmoi and helper scripts
+# This script updates the theme in chezmoi data, reapplies dotfiles, and
+# calls per-app helper scripts for live theme updates
+set -euo pipefail
+
+# Find script directory for helper scripts
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source shared library
+# shellcheck source=bin/macmikase-lib.sh
+source "$SCRIPT_DIR/macmikase-lib.sh"
+
+THEMES_DIR="$(find_themes_dir)"
+
+usage() {
+    echo "Usage: $(basename "$0") <theme-name> [options]"
+    echo ""
+    echo "Switch to a different theme by updating chezmoi data, reapplying dotfiles,"
+    echo "and calling per-app helper scripts for live theme updates."
+    echo ""
+    echo "Options:"
+    echo "  --rollback      Roll back to the previous theme"
+    echo "  --no-cursor     Skip Cursor/VS Code theme update"
+    echo "  --no-terminals  Skip terminal reload signals"
+    echo "  --no-chezmoi    Skip chezmoi apply (only run helper scripts)"
+    echo "  --quiet, -q     Suppress output from helper scripts"
+    echo "  -h, --help      Show this help message"
+    echo ""
+    echo "Available themes:"
+    if [[ -d "$THEMES_DIR" ]]; then
+        for theme in "$THEMES_DIR"/*/; do
+            [[ -d "$theme" ]] && echo "  - $(basename "$theme")"
+        done
+    else
+        echo "  (themes directory not found - run 'make install' first)"
+    fi
+    echo ""
+    echo "Examples:"
+    echo "  $(basename "$0") nord"
+    echo "  $(basename "$0") tokyo-night --no-cursor"
+    echo "  $(basename "$0") catppuccin --no-chezmoi  # Only update running apps"
+}
+
+# Parse arguments
+THEME=""
+ROLLBACK=false
+APPLY_CURSOR=true
+APPLY_TERMINALS=true
+APPLY_CHEZMOI=true
+QUIET=false
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        --rollback)
+            ROLLBACK=true
+            shift
+            ;;
+        --no-cursor)
+            APPLY_CURSOR=false
+            shift
+            ;;
+        --no-terminals)
+            APPLY_TERMINALS=false
+            shift
+            ;;
+        --no-chezmoi)
+            APPLY_CHEZMOI=false
+            shift
+            ;;
+        --quiet|-q)
+            QUIET=true
+            shift
+            ;;
+        -*)
+            echo "Unknown option: $1" >&2
+            usage
+            exit 1
+            ;;
+        *)
+            if [[ -z "$THEME" ]]; then
+                THEME="$1"
+            else
+                echo "Error: Multiple theme names provided" >&2
+                usage
+                exit 1
+            fi
+            shift
+            ;;
+    esac
+done
+
+# Handle rollback
+if [[ "$ROLLBACK" == "true" ]]; then
+    PREV=$(get_previous_theme)
+    if [[ -z "$PREV" ]]; then
+        echo "Error: No theme history found to roll back." >&2
+        exit 1
+    fi
+    echo "Rolling back to: $PREV"
+    THEME="$PREV"
+fi
+
+# Require theme argument
+if [[ -z "$THEME" ]]; then
+    usage
+    exit 1
+fi
+
+THEMES_DIR="$(find_themes_dir)"
+require_theme "$THEME" "$THEMES_DIR" || exit 1
+
+echo "Switching to theme: $THEME"
+
+# Save history
+save_theme_history "$THEME"
+
+# Step 1: Update chezmoi and apply dotfiles
+if [[ "$APPLY_CHEZMOI" == "true" ]]; then
+    # Check if chezmoi is available
+    if ! command -v chezmoi >/dev/null 2>&1; then
+        echo "Error: chezmoi not found. Please install chezmoi first." >&2
+        echo "  curl -sfL https://get.chezmoi.io | sh" >&2
+        exit 1
+    fi
+
+    # Update chezmoi data using Python helper for safe TOML editing
+    echo "  - Updating chezmoi configuration..."
+    if command -v macmikase-chezmoi >/dev/null 2>&1; then
+        macmikase-chezmoi "$THEME" "$THEMES_DIR" || {
+            echo "Error: Failed to update chezmoi configuration" >&2
+            exit 1
+        }
+    elif command -v uv >/dev/null 2>&1; then
+        uv run macmikase-chezmoi "$THEME" "$THEMES_DIR" || {
+            echo "Error: Failed to update chezmoi configuration" >&2
+            exit 1
+        }
+    else
+        echo "Error: macmikase-chezmoi not found (install via uv)" >&2
+        exit 1
+    fi
+
+    # Reapply dotfiles with new theme
+    echo "  - Applying dotfiles..."
+    chezmoi apply --force
+fi
+
+# Step 2: Call helper scripts for live app updates
+echo ""
+echo "Updating applications..."
+
+# Helper script arguments
+HELPER_ARGS=("$THEME")
+if [[ "$QUIET" == "true" ]]; then
+    HELPER_ARGS+=("--quiet")
+fi
+
+# Apply Cursor/VS Code theme
+if [[ "$APPLY_CURSOR" == "true" ]]; then
+    CURSOR_HELPER=$(find_helper "macmikase-theme-cursor")
+    if [[ -n "$CURSOR_HELPER" ]]; then
+        echo "  - Applying Cursor theme..."
+        THEMES_DIR="$THEMES_DIR" "$CURSOR_HELPER" "${HELPER_ARGS[@]}" || true
+    else
+        echo "  - Warning: macmikase-theme-cursor not found"
+    fi
+fi
+
+# Reload terminal emulators
+if [[ "$APPLY_TERMINALS" == "true" ]]; then
+    TERMINAL_HELPER=$(find_helper "macmikase-theme-terminal")
+    if [[ -n "$TERMINAL_HELPER" ]]; then
+        echo "  - Reloading terminals..."
+        if [[ "$QUIET" == "true" ]]; then
+            "$TERMINAL_HELPER" --quiet || true
+        else
+            "$TERMINAL_HELPER" || true
+        fi
+    else
+        echo "  - Warning: macmikase-theme-terminal not found"
+    fi
+fi
+
+echo ""
+echo "Theme '$THEME' applied successfully!"

@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+# macmikase-theme-terminal - Reload terminal emulators after theme change
+# This script sends reload signals to running terminal emulators
+set -euo pipefail
+
+# Source shared library
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=bin/macmikase-lib.sh
+source "$SCRIPT_DIR/macmikase-lib.sh"
+
+usage() {
+    echo "Usage: $(basename "$0") [options]"
+    echo ""
+    echo "Send reload signals to running terminal emulators (kitty, ghostty)."
+    echo "These terminals support live config reload via SIGUSR1."
+    echo ""
+    echo "Options:"
+    echo "  --quiet, -q    Suppress output"
+    echo "  -h, --help     Show this help message"
+    echo ""
+    echo "Supported terminals:"
+    echo "  - kitty       (SIGUSR1 reload)"
+    echo "  - ghostty     (SIGUSR1 reload)"
+    echo "  - alacritty   (auto-reloads when config changes)"
+}
+
+QUIET=false
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        --quiet|-q)
+            QUIET=true
+            shift
+            ;;
+        *)
+            echo "Unknown option: $1" >&2
+            usage
+            exit 1
+            ;;
+    esac
+done
+
+log "Reloading terminal emulators..."
+
+reload_terminals() {
+    local name="$1"
+    shift
+    local reloaded=false
+    for process in "$@"; do
+        if pgrep -x "$process" >/dev/null 2>&1; then
+            if pkill -USR1 "$process" 2>/dev/null; then
+                log "  - Reloaded $name ($process)"
+                reloaded=true
+            else
+                log "  - Failed to reload $name ($process)"
+            fi
+        fi
+    done
+
+    if [[ "$reloaded" == "false" ]]; then
+        log "  - $name not running"
+    fi
+}
+
+# SIGUSR1 reload terminals (process names on macOS)
+reload_terminals "kitty" "kitty"
+reload_terminals "ghostty" "Ghostty" "ghostty"
+
+# Auto-reload terminals
+if pgrep -x "Alacritty" >/dev/null 2>&1 || pgrep -x "alacritty" >/dev/null 2>&1; then
+    log "  - alacritty running (auto-reloads on config change)"
+fi
+
+log "Terminal reload complete!"

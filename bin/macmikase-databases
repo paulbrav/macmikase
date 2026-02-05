@@ -1,0 +1,130 @@
+#!/usr/bin/env bash
+# macmikase-databases - Setup development databases via Docker
+
+set -euo pipefail
+
+die() {
+    echo "Error: $*" >&2
+    exit 1
+}
+
+# Check for docker
+if ! command -v docker >/dev/null 2>&1; then
+    die "docker is not installed. Please install it first."
+fi
+
+# Check for gum
+if ! command -v gum >/dev/null 2>&1; then
+    die "gum is not installed."
+fi
+
+container_exists() {
+    local name="$1"
+    docker inspect "$name" >/dev/null 2>&1
+}
+
+ensure_running() {
+    local name="$1"
+    if container_exists "$name"; then
+        if [[ "$(docker inspect -f '{{.State.Running}}' "$name")" == "true" ]]; then
+            echo "  - $name is already running."
+        else
+            echo "  - Starting existing container: $name"
+            docker start "$name" >/dev/null
+        fi
+        return 0
+    fi
+    return 1
+}
+
+echo "Select databases to spin up (Docker):"
+SELECTED=$(gum choose --no-limit \
+    "PostgreSQL (Port 5432)" \
+    "MySQL (Port 3306)" \
+    "Redis (Port 6379)" \
+    "MongoDB (Port 27017)")
+
+if [[ -z "$SELECTED" ]]; then
+    echo "No databases selected."
+    exit 0
+fi
+
+if gum confirm "Start selected databases in Docker?"; then
+    [[ "$SELECTED" == *"PostgreSQL"* ]] && {
+        echo "PostgreSQL:"
+        if ! ensure_running "macmikase-postgres"; then
+            POSTGRES_PASSWORD="$(gum input --password --prompt "  Postgres password (empty for random): ")"
+            if [[ -z "$POSTGRES_PASSWORD" ]]; then
+                POSTGRES_PASSWORD="$(openssl rand -base64 16 | tr -d '/+=')"
+                echo "  Generated random password: $POSTGRES_PASSWORD"
+            fi
+            docker volume create macmikase-postgres-data >/dev/null
+            echo "  - Creating container: macmikase-postgres"
+            docker run \
+                --name macmikase-postgres \
+                -e POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
+                -p 5432:5432 \
+                -v macmikase-postgres-data:/var/lib/postgresql/data \
+                --restart unless-stopped \
+                -d postgres:latest >/dev/null
+        fi
+        echo "  Connect: postgres://postgres:<password>@localhost:5432/postgres"
+    }
+    
+    [[ "$SELECTED" == *"MySQL"* ]] && {
+        echo "MySQL:"
+        if ! ensure_running "macmikase-mysql"; then
+            MYSQL_ROOT_PASSWORD="$(gum input --password --prompt "  MySQL root password (empty for random): ")"
+            if [[ -z "$MYSQL_ROOT_PASSWORD" ]]; then
+                MYSQL_ROOT_PASSWORD="$(openssl rand -base64 16 | tr -d '/+=')"
+                echo "  Generated random password: $MYSQL_ROOT_PASSWORD"
+            fi
+            docker volume create macmikase-mysql-data >/dev/null
+            echo "  - Creating container: macmikase-mysql"
+            docker run \
+                --name macmikase-mysql \
+                -e MYSQL_ROOT_PASSWORD="$MYSQL_ROOT_PASSWORD" \
+                -p 3306:3306 \
+                -v macmikase-mysql-data:/var/lib/mysql \
+                --restart unless-stopped \
+                -d mysql:latest >/dev/null
+        fi
+        echo "  Connect: mysql -h 127.0.0.1 -P 3306 -u root -p"
+    }
+    
+    [[ "$SELECTED" == *"Redis"* ]] && {
+        echo "Redis:"
+        if ! ensure_running "macmikase-redis"; then
+            docker volume create macmikase-redis-data >/dev/null
+            echo "  - Creating container: macmikase-redis"
+            docker run \
+                --name macmikase-redis \
+                -p 6379:6379 \
+                -v macmikase-redis-data:/data \
+                --restart unless-stopped \
+                -d redis:latest >/dev/null
+        fi
+        echo "  Connect: redis-cli -h 127.0.0.1 -p 6379"
+    }
+    
+    [[ "$SELECTED" == *"MongoDB"* ]] && {
+        echo "MongoDB:"
+        if ! ensure_running "macmikase-mongodb"; then
+            docker volume create macmikase-mongodb-data >/dev/null
+            echo "  - Creating container: macmikase-mongodb"
+            docker run \
+                --name macmikase-mongodb \
+                -p 27017:27017 \
+                -v macmikase-mongodb-data:/data/db \
+                --restart unless-stopped \
+                -d mongo:latest >/dev/null
+        fi
+        echo "  Connect: mongosh mongodb://127.0.0.1:27017"
+    }
+    
+    echo ""
+    echo "Databases ready. Use 'docker ps' to see them."
+    echo "Stop/remove: docker rm -f macmikase-postgres macmikase-mysql macmikase-redis macmikase-mongodb"
+else
+    echo "Aborted."
+fi

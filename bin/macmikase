@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# macmikase - Main interactive menu entrypoint for macmikase on macOS
+# Uses gum for a stylish CLI interface.
+
+set -euo pipefail
+
+# Find script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source shared helpers (themes dir discovery, etc.)
+# shellcheck source=bin/macmikase-lib.sh
+if [[ -f "$SCRIPT_DIR/macmikase-lib.sh" ]]; then
+    # shellcheck disable=SC1091
+    source "$SCRIPT_DIR/macmikase-lib.sh"
+fi
+
+# Check for gum
+if ! command -v gum >/dev/null 2>&1; then
+    echo "Error: gum is not installed. Please install it with 'brew install gum' or 'make install'."
+    exit 1
+fi
+
+main_menu() {
+    clear
+    echo "     ██████╗ ██████╗ ███████╗███╗   ███╗██╗██╗  ██╗ █████╗ ███████╗███████╗"
+    echo "    ██╔════╝██╔═══██╗██╔════╝████╗ ████║██║██║ ██╔╝██╔══██╗██╔════╝██╔════╝"
+    echo "    ██║     ██║   ██║███████╗██╔████╔██║██║█████╔╝ ███████║███████╗█████╗  "
+    echo "    ██║     ██║   ██║╚════██║██║╚██╔╝██║██║██╔═██╗ ██╔══██║╚════██║██╔══╝  "
+    echo "    ╚██████╗╚██████╔╝███████║██║ ╚═╝ ██║██║██║  ██╗██║  ██║███████║███████╗"
+    echo "     ╚═════╝ ╚═════╝ ╚══════╝╚═╝     ╚═╝╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚══════╝"
+    echo "                          macOS Omakase for Mac                            "
+    echo ""
+
+    CHOICE=$(gum choose \
+        "🎨 Change Theme" \
+        "📦 Run Full Install" \
+        "🐳 Setup Docker Databases" \
+        "🔄 Update Everything" \
+        "🪛 Cursor Extensions" \
+        "❌ Exit")
+
+    case "$CHOICE" in
+        "🎨 Change Theme")
+            if command -v theme-tui >/dev/null 2>&1; then
+                theme-tui
+            elif [[ -f "$SCRIPT_DIR/macmikase-theme" ]]; then
+                # Fallback to simple choice if TUI fails
+                if command -v find_themes_dir >/dev/null 2>&1; then
+                    THEMES_DIR="$(find_themes_dir)"
+                else
+                    # Last-resort fallback
+                    THEMES_DIR="${THEMES_DIR:-$HOME/.local/share/macmikase/themes}"
+                fi
+                THEME=$(ls -1 "$THEMES_DIR" | sort | gum choose)
+                "$SCRIPT_DIR/macmikase-theme" "$THEME"
+            fi
+            ;;
+        "📦 Run Full Install")
+            "$SCRIPT_DIR/macmikase-install"
+            ;;
+        "🐳 Setup Docker Databases")
+            "$SCRIPT_DIR/macmikase-databases"
+            ;;
+        "🔄 Update Everything")
+            "$SCRIPT_DIR/macmikase-update"
+            ;;
+        "🪛 Cursor Extensions")
+            "$SCRIPT_DIR/macmikase-cursor-extensions"
+            ;;
+        "❌ Exit")
+            exit 0
+            ;;
+    esac
+}
+
+# Run menu in a loop unless user exits
+while true; do
+    main_menu
+    echo ""
+    echo "Press any key to return to menu..."
+    read -r -n 1
+done

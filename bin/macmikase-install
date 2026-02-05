@@ -1,0 +1,274 @@
+#!/usr/bin/env bash
+# macmikase-install - Japanese cyberpunk themed system installer for macOS
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(dirname "$SCRIPT_DIR")"
+CONFIG_FILE="${CONFIG_FILE:-${MACMIKASE_CONFIG:-$REPO_DIR/macmikase.yaml}}"
+LOG_FILE="/tmp/macmikase-install-$(date +%Y%m%d-%H%M%S).log"
+
+usage() {
+    cat << EOF
+Usage: $(basename "$0") [options]
+
+Options:
+  -c, --config PATH   Path to macmikase.yaml (default: $CONFIG_FILE)
+  -h, --help          Show this help message
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -c|--config)
+            if [[ -z "${2:-}" ]]; then
+                echo "Error: --config requires a path." >&2
+                usage
+                exit 1
+            fi
+            CONFIG_FILE="$2"
+            shift 2
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1" >&2
+            usage
+            exit 1
+            ;;
+    esac
+done
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Colors - Cyberpunk Palette
+# ═══════════════════════════════════════════════════════════════════════════════
+NEON_PINK="212"
+NEON_CYAN="51"
+NEON_PURPLE="99"
+NEON_GREEN="82"
+NEON_ORANGE="208"
+NEON_RED="196"
+DIM="241"
+
+ensure_brew() {
+    if command -v brew >/dev/null 2>&1; then
+        return
+    fi
+    echo "Homebrew not found. Installing..."
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    if [[ -x /opt/homebrew/bin/brew ]]; then
+        eval "$(/opt/homebrew/bin/brew shellenv)"
+    elif [[ -x /usr/local/bin/brew ]]; then
+        eval "$(/usr/local/bin/brew shellenv)"
+    fi
+}
+
+ensure_gum() {
+    if command -v gum >/dev/null 2>&1; then
+        return
+    fi
+    echo "gum not found. Installing..."
+    brew install gum
+}
+
+ensure_uv() {
+    if command -v uv >/dev/null 2>&1; then
+        return
+    fi
+    echo "uv not found. Installing..."
+    curl -LsSf https://astral.sh/uv/install.sh -o /tmp/uv-install.sh
+    sh /tmp/uv-install.sh
+    rm /tmp/uv-install.sh
+    export PATH="$HOME/.local/bin:$PATH"
+}
+
+banner() {
+    local p="\033[38;5;${NEON_PURPLE}m"
+    local r="\033[0m"
+
+    clear
+    echo ""
+    echo -e "  ${p}╔════════════════════════════════════════════════════════════════════════════╗${r}"
+
+    local inner_ascii
+    inner_ascii=$(gum style --foreground "$NEON_PINK" --width 76 --align center \
+        "░███╗░░░███╗░█████╗░░██████╗░█████╗░███╗░░░███╗██╗██╗░░██╗░█████╗░░██████╗" \
+        "░████╗░████║██╔══██╗██╔════╝██╔══██╗████╗░████║██║██║░██╔╝██╔══██╗██╔════╝" \
+        "░██╔████╔██║███████║╚█████╗░██║░░██║██╔████╔██║██║█████═╝░███████║╚█████╗░" \
+        "░██║╚██╔╝██║██╔══██║░╚═══██╗██║░░██║██║╚██╔╝██║██║██╔═██╗░██╔══██║░╚═══██╗" \
+        "░██║░╚═╝░██║██║░░██║██████╔╝╚█████╔╝██║░╚═╝░██║██║██║░╚██╗██║░░██║██████╔╝" \
+        "░╚═╝░░░░░╚═╝╚═╝░░╚═╝╚═════╝░░╚════╝░╚═╝░░░░░╚═╝╚═╝╚═╝░░╚═╝╚═╝░░╚═╝╚═════╝")
+
+    while IFS= read -r line; do
+        echo -e "  ${p}║${r}${line}${p}║${r}"
+    done <<< "$inner_ascii"
+
+    echo -e "  ${p}╠════════════════════════════════════════════════════════════════════════════╣${r}"
+
+    local inner_text
+    inner_text=$(gum style --width 76 --align center \
+        "$(echo -e "\033[38;5;${NEON_CYAN}m⛩️  システム設定  ⛩️\033[0m")" \
+        "$(echo -e "\033[38;5;${DIM}mmacOS System Configuration\033[0m")")
+
+    while IFS= read -r line; do
+        echo -e "  ${p}║${r}${line}${p}║${r}"
+    done <<< "$inner_text"
+
+    echo -e "  ${p}╚════════════════════════════════════════════════════════════════════════════╝${r}"
+    echo ""
+}
+
+phase_header() {
+    local num="$1"
+    local total="$2"
+    local title="$3"
+    local subtitle="$4"
+
+    local c="\033[38;5;${NEON_CYAN}m"
+    local r="\033[0m"
+
+    echo ""
+    echo -e "  ${c}┌────────────────────────────────────────────────────────────────────────────┐${r}"
+
+    local inner_phase
+    inner_phase=$(gum style --width 76 --align left \
+        "$(echo -e "  \033[38;5;${NEON_PINK}m[$num/$total] $title\033[0m")" \
+        "$(echo -e "        \033[38;5;${DIM}m$subtitle\033[0m")")
+
+    while IFS= read -r line; do
+        echo -e "  ${c}│${r}${line}${c}│${r}"
+    done <<< "$inner_phase"
+
+    echo -e "  ${c}└────────────────────────────────────────────────────────────────────────────┘${r}"
+}
+
+run_ansible() {
+    local tags="$1"
+    local desc="$2"
+
+    cd "$REPO_DIR/ansible"
+
+    if gum spin \
+        --spinner.foreground "$NEON_PINK" \
+        --title.foreground "$NEON_CYAN" \
+        --spinner dot \
+        --title "  処理中... $desc" \
+        -- bash -c "uv run ansible-playbook -i inventory.yml playbook.yml \
+            -e 'config_file=$CONFIG_FILE' \
+            --tags '$tags' >> '$LOG_FILE' 2>&1"; then
+        gum style --foreground "$NEON_GREEN" "  ✓ 完了"
+        return 0
+    else
+        gum style --foreground "$NEON_RED" "  ✗ 失敗 - $LOG_FILE"
+        return 1
+    fi
+}
+
+success_banner() {
+    local g="\033[38;5;${NEON_GREEN}m"
+    local r="\033[0m"
+
+    echo ""
+    echo ""
+    echo -e "  ${g}╔════════════════════════════════════════════════════════════════════════════╗${r}"
+
+    local inner_success
+    inner_success=$(gum style --foreground "$NEON_GREEN" --width 76 --align center \
+        "██████╗  ██████╗ ███╗   ██╗███████╗ ██╗" \
+        "██╔══██╗██╔═══██╗████╗  ██║██╔════╝ ██║" \
+        "██║  ██║██║   ██║██╔██╗ ██║█████╗   ██║" \
+        "██║  ██║██║   ██║██║╚██╗██║██╔══╝   ╚═╝" \
+        "██████╔╝╚██████╔╝██║ ╚████║███████╗ ██╗" \
+        "╚═════╝  ╚═════╝ ╚═╝  ╚═══╝╚══════╝ ╚═╝")
+
+    while IFS= read -r line; do
+        echo -e "  ${g}║${r}${line}${g}║${r}"
+    done <<< "$inner_success"
+
+    echo -e "  ${g}╠════════════════════════════════════════════════════════════════════════════╣${r}"
+
+    local inner_text
+    inner_text=$(gum style --width 76 --align center \
+        "$(echo -e "\033[38;5;${NEON_CYAN}m🌸 インストール完了 🌸\033[0m")" \
+        "$(echo -e "\033[38;5;${DIM}mInstallation Complete\033[0m")")
+
+    while IFS= read -r line; do
+        echo -e "  ${g}║${r}${line}${g}║${r}"
+    done <<< "$inner_text"
+
+    echo -e "  ${g}╚════════════════════════════════════════════════════════════════════════════╝${r}"
+    echo ""
+    echo ""
+    gum style --foreground "$NEON_CYAN" "  次のステップ:"
+    echo ""
+    gum style --foreground "$DIM" "    macmikase-theme <name>  テーマを変更"
+    gum style --foreground "$DIM" "    macmikase               メニュー"
+    gum style --foreground "$DIM" "    $LOG_FILE"
+    echo ""
+}
+
+error_banner() {
+    local red="\033[38;5;${NEON_RED}m"
+    local r="\033[0m"
+
+    echo ""
+    echo ""
+    echo -e "  ${red}╔════════════════════════════════════════════════════════════════════════════╗${r}"
+
+    local inner_error
+    inner_error=$(gum style --width 76 --align center \
+        "$(echo -e "\033[38;5;${NEON_RED}mエラーが発生しました\033[0m")" \
+        "$(echo -e "\033[38;5;${DIM}mAn error occurred\033[0m")")
+
+    while IFS= read -r line; do
+        echo -e "  ${red}║${r}${line}${red}║${r}"
+    done <<< "$inner_error"
+
+    echo -e "  ${red}╚════════════════════════════════════════════════════════════════════════════╝${r}"
+    echo ""
+    gum style --foreground "$DIM" "  $LOG_FILE"
+    echo ""
+}
+
+main() {
+    ensure_brew
+    ensure_gum
+    ensure_uv
+
+    banner
+
+    gum style --foreground "$DIM" "  設定: $CONFIG_FILE"
+    echo ""
+
+    if ! gum confirm \
+        --prompt.foreground "$NEON_CYAN" \
+        --selected.background "$NEON_PURPLE" \
+        "  インストールを開始しますか?"; then
+        gum style --foreground "$NEON_ORANGE" "  キャンセル"
+        exit 0
+    fi
+
+    {
+        echo "=== MACMIKASE INSTALL LOG ==="
+        echo "Started: $(date)"
+        echo "Config: $CONFIG_FILE"
+        echo ""
+    } > "$LOG_FILE"
+
+    phase_header "1" "4" "Homebrew" "Formulae, casks, fonts"
+    run_ansible "homebrew" "homebrew" || { error_banner; exit 1; }
+
+    phase_header "2" "4" "Runtimes" "Rust, Go, Node, uv tools"
+    run_ansible "runtimes" "runtimes" || { error_banner; exit 1; }
+
+    phase_header "3" "4" "Web Apps" "macOS app wrappers"
+    run_ansible "web" "web" || { error_banner; exit 1; }
+
+    phase_header "4" "4" "Dotfiles" "Shell, editor configs"
+    run_ansible "dotfiles" "dotfiles" || { error_banner; exit 1; }
+
+    success_banner
+}
+
+main "$@"

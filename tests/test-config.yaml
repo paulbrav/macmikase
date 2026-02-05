@@ -1,0 +1,44 @@
+defaults:
+  install: true
+  theme: nord
+
+brew:
+  core:
+    - name: fzf
+      install: true
+    - name: zoxide
+      install: true
+    - name: ripgrep
+      install: true
+    - name: fd
+      install: true
+    - name: bat
+      install: true
+    - name: btop
+      install: true
+
+cask:
+  apps:
+    - name: obsidian
+      install: true
+    - name: discord
+      install: false
+
+uv_tools:
+  - name: ruff
+    install: true
+  - name: mypy
+    install: false
+
+npm:
+  - name: "@openai/codex"
+    version: latest
+    install: true
+
+themes:
+  default: nord
+  available:
+    - nord
+    - tokyo-night
+  paths:
+    base: ~/.local/share/macmikase/themes

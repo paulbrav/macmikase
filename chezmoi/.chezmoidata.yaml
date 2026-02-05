@@ -1,9 +1,9 @@
-# Chezmoi data file for cosmikase
+# Chezmoi data file for macmikase
 # This file contains template variables used across dotfiles
 
 # Theme configuration
 theme: nord
-themes_dir: ~/.local/share/cosmikase/themes
+themes_dir: ~/.local/share/macmikase/themes
 
 # Font settings
 font_family: JetBrainsMono Nerd Font

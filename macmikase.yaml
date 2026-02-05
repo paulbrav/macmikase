@@ -1,0 +1,155 @@
+defaults:
+  install: true
+  theme: nord
+
+# Homebrew formulae
+brew:
+  core:
+    - { name: zoxide, desc: "Smarter cd command that remembers frequent paths", install: true }
+    - { name: fzf, desc: "General-purpose command-line fuzzy finder", install: true }
+    - { name: tmux, desc: "Terminal multiplexer for multiple sessions", install: true }
+    - { name: mosh, desc: "Mobile shell with roaming and intermittent connectivity", install: true }
+    - { name: eza, desc: "Modern replacement for ls", install: true }
+    - { name: tree, desc: "Recursive directory listing", install: true }
+    - { name: fd, desc: "Fast alternative to find", install: true }
+    - { name: ncdu, desc: "NCurses Disk Usage analyzer", install: true }
+    - { name: trash, desc: "Safe CLI trash utility", install: true }
+    - { name: atool, desc: "Script for managing file archives", install: true }
+    - { name: p7zip, desc: "7zip archive support", install: true }
+    - { name: rsync, desc: "Fast, versatile file-copying tool", install: true }
+    - { name: pv, desc: "Pipe viewer for monitoring data flow", install: true }
+    - { name: ripgrep, desc: "Fast line-oriented search tool", install: true }
+    - { name: bat, desc: "Cat clone with syntax highlighting", install: true }
+    - { name: jq, desc: "Command-line JSON processor", install: true }
+    - { name: neovim, desc: "Extensible Vim-based text editor", install: true }
+    - { name: curl, desc: "CLI tool for transferring data with URLs", install: true }
+    - { name: wget, desc: "Network utility to retrieve files", install: true }
+    - { name: nmap, desc: "Network scanner", install: true }
+    - { name: socat, desc: "Multipurpose relay for data transfer", install: true }
+    - { name: git, desc: "Distributed version control system", install: true }
+    - { name: git-lfs, desc: "Git extension for large files", install: true }
+    - { name: gh, desc: "GitHub CLI", install: true }
+    - { name: cmake, desc: "Cross-platform build system", install: true }
+    - { name: ninja, desc: "Fast build system", install: true }
+    - { name: pkg-config, desc: "Helper for compiling applications", install: true }
+    - { name: shellcheck, desc: "Static analysis for shell scripts", install: true }
+    - { name: entr, desc: "Run commands when files change", install: true }
+    - { name: direnv, desc: "Directory-based environment variables", install: true }
+    - { name: sqlite, desc: "SQLite database CLI", install: true }
+    - { name: lsof, desc: "List open files", install: true }
+    - { name: hyperfine, desc: "Command-line benchmarking tool", install: true }
+    - { name: btop, desc: "Resource monitor for CPU, memory, disk, network", install: true }
+    - { name: bpython, desc: "Fancy Python interpreter interface", install: true }
+    - { name: tldr, desc: "Simplified community-driven man pages", install: true }
+    - { name: ffmpeg, desc: "Multimedia framework for video/audio", install: true }
+    - { name: age, desc: "Modern file encryption", install: true }
+    - { name: restic, desc: "Fast, secure backup program", install: true }
+
+  dev:
+    - { name: rustup, desc: "Rust toolchain manager", install: true }
+    - { name: go, desc: "Go programming language", install: true }
+    - { name: zig, desc: "Zig programming language", install: true }
+    - { name: node, desc: "Node.js runtime", install: true }
+    - { name: bun, desc: "Fast all-in-one JavaScript runtime", install: true }
+    - { name: uv, desc: "Fast Python package installer", install: true }
+    - { name: starship, desc: "Blazing-fast shell prompt", install: true }
+    - { name: juliaup, desc: "Julia version manager", install: false }
+
+  yubikey:
+    - { name: ykman, desc: "YubiKey Manager CLI", install: false }
+
+# Homebrew casks
+cask:
+  terminal:
+    - { name: ghostty, desc: "GPU-accelerated terminal emulator", install: true }
+    - { name: kitty, desc: "GPU-based terminal emulator", install: true }
+    - { name: alacritty, desc: "OpenGL terminal emulator", install: true }
+
+  apps:
+    - { name: obsidian, desc: "Knowledge base / Markdown notes", install: true }
+    - { name: todoist-app, desc: "Task management", install: true }
+    - { name: onlyoffice, desc: "Office suite", install: true }
+    - { name: vlc, desc: "Multimedia player", install: true }
+    - { name: firefox, desc: "Web browser", install: true }
+    - { name: gimp, desc: "Image editing", install: false }
+    - { name: inkscape, desc: "Vector graphics", install: false }
+    - { name: bruno, desc: "API client", install: true }
+    - { name: discord, desc: "Voice and text chat", install: true }
+    - { name: signal, desc: "Encrypted messaging", install: true }
+    - { name: telegram, desc: "Telegram messaging", install: true }
+    - { name: bitwarden, desc: "Password manager", install: true }
+    - { name: protonvpn, desc: "VPN service", install: true }
+    - { name: chromium, desc: "Open source browser", install: true }
+    - { name: brave-browser, desc: "Privacy browser", install: false }
+    - { name: spotify, desc: "Music streaming", install: false }
+    - { name: docker, desc: "Docker Desktop", install: true }
+    - { name: cursor, desc: "AI Code Editor", install: true }
+    - { name: amethyst, desc: "Tiling window manager", install: true }
+
+  fonts:
+    - { name: font-jetbrains-mono-nerd-font, desc: "JetBrains Mono Nerd Font", install: true }
+
+# Web apps (macOS app wrappers)
+web:
+  apps:
+    - { name: Slack, desc: "Team collaboration", url: "https://slack.com", install: true }
+    - { name: Superhuman, desc: "Fast email client", url: "https://superhuman.com", install: true }
+    - { name: Linear, desc: "Issue tracking", url: "https://linear.app", install: true }
+
+# Rust (cargo install)
+cargo_tools:
+  - { name: zellij, desc: "Terminal workspace", install: true }
+  - { name: git-delta, desc: "Beautiful git diff viewer", install: true }
+  - { name: sd, desc: "Modern sed replacement", install: true }
+  - { name: tokei, desc: "Code statistics by language", install: true }
+  - { name: procs, desc: "Modern ps replacement", install: true }
+
+# Go (go install)
+go_tools:
+  - { name: gum, desc: "Glamorous shell scripts", package: "github.com/charmbracelet/gum@latest", install: true }
+  - { name: lazygit, desc: "Terminal UI for git", package: "github.com/jesseduffield/lazygit@latest", install: true }
+  - { name: lazydocker, desc: "Terminal UI for Docker", package: "github.com/jesseduffield/lazydocker@latest", install: true }
+  - { name: dive, desc: "Explore Docker image layers", package: "github.com/wagoodman/dive@latest", install: true }
+  - { name: croc, desc: "Secure file transfer", package: "github.com/schollz/croc/v10@latest", install: true }
+
+# Python (uv tool install)
+uv_tools:
+  - { name: ruff, desc: "Fast Python linter and formatter", install: true }
+  - { name: pyrefly, desc: "Fast type checker from Meta", install: true }
+  - { name: ty, desc: "Type checking tool", install: true }
+  - { name: jupyterlab, desc: "JupyterLab environment", install: true }
+  - { name: jupyter-core, desc: "Jupyter core functionality", install: true }
+  - { name: jupyter-client, desc: "Jupyter protocol client", install: true }
+  - { name: huggingface-hub, desc: "Hugging Face Hub client", install: true }
+
+# Node.js (npm install -g)
+npm:
+  - { name: "@openai/codex", desc: "OpenAI Codex CLI", version: latest, install: true }
+  - { name: "@bitwarden/cli", desc: "Bitwarden CLI", version: latest, install: true }
+  - { name: "@withgraphite/graphite-cli", desc: "Git branch stacking CLI", version: latest, install: true }
+
+scripts: []
+
+# Themes
+themes:
+  default: nord
+  available:
+    - catppuccin
+    - cosmic-dark
+    - ethereal
+    - everforest
+    - gruvbox
+    - hackerman
+    - kanagawa
+    - matte-black
+    - nord
+    - osaka-jade
+    - pop-default
+    - ristretto
+    - rose-pine
+    - tokyo-night
+    - catppuccin-latte
+    - cosmic-light
+    - flexoki-light
+  paths:
+    base: ~/.local/share/macmikase/themes

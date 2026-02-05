@@ -1,0 +1,127 @@
+# Main Ansible playbook for macmikase
+# Configures a macOS workstation with Homebrew packages, runtimes, web apps, and dotfiles
+---
+- name: Configure macOS workstation
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: true
+
+  vars:
+    config_file: >-
+      {{ lookup('env', 'MACMIKASE_CONFIG')
+         | default(lookup('env', 'CONFIG_FILE') | default('../macmikase.yaml', true), true) }}
+    macmikase_config: "{{ lookup('file', config_file) | from_yaml }}"
+
+    defaults: "{{ macmikase_config.defaults | default({}) }}"
+    brew: "{{ macmikase_config.brew | default({}) }}"
+    cask: "{{ macmikase_config.cask | default({}) }}"
+    web: "{{ macmikase_config.web | default({}) }}"
+    npm_packages: "{{ macmikase_config.npm | default([]) }}"
+    uv_tools: "{{ macmikase_config.uv_tools | default([]) }}"
+    cargo_tools: "{{ macmikase_config.cargo_tools | default([]) }}"
+    go_tools: "{{ macmikase_config.go_tools | default([]) }}"
+    themes: "{{ macmikase_config.themes | default({}) }}"
+
+    # Paths
+    local_bin: "{{ ansible_env.HOME }}/.local/bin"
+    local_share: "{{ ansible_env.HOME }}/.local/share"
+    config_dir: "{{ ansible_env.HOME }}/.config"
+    themes_dir: "{{ local_share }}/macmikase/themes"
+
+    homebrew_prefix: "{{ '/opt/homebrew' if ansible_facts['architecture'] == 'arm64' else '/usr/local' }}"
+    brew_bin: "{{ homebrew_prefix }}/bin/brew"
+
+  pre_tasks:
+    - name: "═══════════════════════════════════════════════════════════════════"
+      ansible.builtin.debug:
+        msg: "⛩️  MACMIKASE INSTALLATION STARTING"
+      tags: [always]
+
+    - name: Display configuration source
+      ansible.builtin.debug:
+        msg: "Loading configuration from: {{ config_file }}"
+      tags: [always]
+
+    - name: Check for Homebrew
+      ansible.builtin.stat:
+        path: "{{ brew_bin }}"
+      register: brew_stat
+
+    - name: Install Homebrew (if missing)
+      ansible.builtin.shell: |
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+      args:
+        creates: "{{ brew_bin }}"
+      when: not brew_stat.stat.exists
+
+  tasks:
+    # ─────────────────────────────────────────────────────────────────────────
+    # Phase 1: Homebrew Packages & Casks
+    # ─────────────────────────────────────────────────────────────────────────
+    - name: "📦 [1/4] INSTALLING HOMEBREW PACKAGES"
+      ansible.builtin.debug:
+        msg: "Installing Homebrew formulae and casks..."
+      tags: [homebrew]
+
+    - name: Include homebrew role
+      ansible.builtin.include_role:
+        name: homebrew
+      tags: [homebrew]
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Phase 2: Language Runtimes & Tools
+    # ─────────────────────────────────────────────────────────────────────────
+    - name: "🔧 [2/4] INSTALLING RUNTIMES & TOOLS"
+      ansible.builtin.debug:
+        msg: "Installing runtimes and developer tools..."
+      tags: [runtimes]
+
+    - name: Include runtimes role
+      ansible.builtin.include_role:
+        name: runtimes
+      tags: [runtimes]
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Phase 3: Web Apps
+    # ─────────────────────────────────────────────────────────────────────────
+    - name: "🌐 [3/4] CREATING WEB APP SHORTCUTS"
+      ansible.builtin.debug:
+        msg: "Creating macOS app wrappers for web apps..."
+      tags: [web]
+
+    - name: Include web role
+      ansible.builtin.include_role:
+        name: web
+      tags: [web]
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Phase 4: Dotfiles
+    # ─────────────────────────────────────────────────────────────────────────
+    - name: "📝 [4/4] APPLYING DOTFILES"
+      ansible.builtin.debug:
+        msg: "Configuring shell, editor, and application settings..."
+      tags: [dotfiles]
+
+    - name: Include dotfiles role
+      ansible.builtin.include_role:
+        name: dotfiles
+      tags: [dotfiles]
+
+  post_tasks:
+    - name: "═══════════════════════════════════════════════════════════════════"
+      ansible.builtin.debug:
+        msg: "✅ MACMIKASE INSTALLATION COMPLETE!"
+
+    - name: Display completion message
+      ansible.builtin.debug:
+        msg: |
+          ┌─────────────────────────────────────────────────────────────────┐
+          │                    🎉 Installation Complete!                    │
+          ├─────────────────────────────────────────────────────────────────┤
+          │                                                                 │
+          │  Next steps:                                                    │
+          │  • Run 'macmikase-theme <name>' to switch themes                │
+          │  • Run 'macmikase' for the interactive menu                     │
+          │                                                                 │
+          └─────────────────────────────────────────────────────────────────┘

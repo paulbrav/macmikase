@@ -1,0 +1,42 @@
+# Cursor Extensions - Minimal Set
+# Install with: macmikase-cursor-extensions install
+
+# Python
+ms-python.python
+charliermarsh.ruff
+meta.pyrefly
+
+# Rust
+rust-lang.rust-analyzer
+tamasfe.even-better-toml
+
+# C/C++
+ms-vscode.cmake-tools
+xaver.clang-format
+
+# Mojo
+modular-mojotools.vscode-mojo
+
+# Julia
+julialang.language-julia
+
+# Markdown & Docs
+bierner.markdown-mermaid
+bierner.markdown-preview-github-styles
+
+# Config Files
+redhat.vscode-yaml
+
+# Editor Enhancement
+usernamehw.errorlens
+
+# Git
+graphite.gti-vscode
+
+# Themes (for macmikase theme system)
+catppuccin.catppuccin-vsc
+arcticicestudio.nord-visual-studio-code
+enkia.tokyo-night
+jdinhlife.gruvbox
+sainnhe.everforest
+mvllow.rose-pine

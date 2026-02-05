@@ -1,0 +1,64 @@
+#!/bin/bash
+# Run after chezmoi apply to set up theme files and reload applications
+# This script delegates to helper scripts for per-app theme updates
+
+set -euo pipefail
+
+THEME="{{ .theme }}"
+THEMES_DIR="{{ .themes_dir }}"
+THEME_PATH="$THEMES_DIR/$THEME"
+LOCAL_BIN="$HOME/.local/bin"
+
+echo "Setting up theme: $THEME"
+
+if [[ ! -d "$THEMES_DIR" ]]; then
+    echo "Warning: Themes directory not found at $THEMES_DIR"
+    echo "Run 'make install' to sync themes from the repository."
+    exit 0
+fi
+
+if [[ ! -d "$THEME_PATH" ]]; then
+    echo "Warning: Theme '$THEME' not found in $THEMES_DIR"
+    exit 0
+fi
+
+# Copy btop theme to btop themes directory
+if [[ -f "$THEME_PATH/btop.theme" ]]; then
+    mkdir -p ~/.config/btop/themes
+    rm -f ~/.config/btop/themes/"$THEME.theme"
+    cp "$THEME_PATH/btop.theme" ~/.config/btop/themes/"$THEME.theme"
+    echo "  - Copied btop theme"
+fi
+
+# Copy opencode theme to opencode themes directory
+if [[ -f "$THEME_PATH/opencode.json" ]]; then
+    mkdir -p ~/.config/opencode/themes
+    rm -f ~/.config/opencode/themes/"$THEME.json"
+    cp "$THEME_PATH/opencode.json" ~/.config/opencode/themes/"$THEME.json"
+    echo "  - Copied opencode theme"
+fi
+
+# Copy neovim theme
+if [[ -f "$THEME_PATH/neovim.lua" ]] || [[ -f "$THEME_PATH/nvim.lua" ]]; then
+    mkdir -p ~/.config/nvim/lua/macmikase
+    rm -f ~/.config/nvim/lua/macmikase/theme.lua
+    if [[ -f "$THEME_PATH/neovim.lua" ]]; then
+        cp "$THEME_PATH/neovim.lua" ~/.config/nvim/lua/macmikase/theme.lua
+    elif [[ -f "$THEME_PATH/nvim.lua" ]]; then
+        cp "$THEME_PATH/nvim.lua" ~/.config/nvim/lua/macmikase/theme.lua
+    fi
+    echo "  - Copied neovim theme"
+fi
+
+# Reload terminal emulators
+if [[ -x "$LOCAL_BIN/macmikase-theme-terminal" ]]; then
+    echo "  - Reloading terminals..."
+    "$LOCAL_BIN/macmikase-theme-terminal" --quiet || true
+elif command -v macmikase-theme-terminal >/dev/null 2>&1; then
+    echo "  - Reloading terminals..."
+    macmikase-theme-terminal --quiet || true
+else
+    echo "  - Skipping terminal reload (helper not installed)"
+fi
+
+echo "Theme '$THEME' applied successfully!"

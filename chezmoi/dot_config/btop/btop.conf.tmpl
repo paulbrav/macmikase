@@ -81,13 +81,13 @@ proc_mem_bytes = True
 #* Show cpu graph for each process.
 proc_cpu_graphs = True
 
-#* Use /proc/[pid]/smaps for memory information in the process info box (very slow but more accurate)
+#* Use detailed process memory maps in the process info box (very slow; macOS unsupported).
 proc_info_smaps = False
 
 #* Show proc box on left side of screen instead of right.
 proc_left = False
 
-#* (Linux) Filter processes tied to the Linux kernel(similar behavior to htop).
+#* Filter kernel processes (unsupported on macOS).
 proc_filter_kernel = False
 
 #* In tree-view, always accumulate child process resources in the parent process.
@@ -244,8 +244,6 @@ custom_gpu_name4 = ""
 
 #* Custom gpu5 model name, empty string to disable.
 custom_gpu_name5 = ""
-
-
 
 
 

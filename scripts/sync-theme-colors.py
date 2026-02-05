@@ -68,8 +68,6 @@ def update_theme(theme_path: Path, verbose: bool = True) -> bool:
 
     # Detect custom themes that have manually defined palettes
     is_custom = theme_path.name in [
-        "cosmic-dark",
-        "cosmic-light",
         "osaka-jade",
         "matte-black",
         "pop-default",

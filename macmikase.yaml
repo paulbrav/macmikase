@@ -7,14 +7,14 @@ brew:
   core:
     - { name: zoxide, desc: "Smarter cd command that remembers frequent paths", install: true }
     - { name: fzf, desc: "General-purpose command-line fuzzy finder", install: true }
-    - { name: tmux, desc: "Terminal multiplexer for multiple sessions", install: true }
     - { name: mosh, desc: "Mobile shell with roaming and intermittent connectivity", install: true }
+    - { name: nushell, desc: "Structured data shell with native JSON/YAML/CSV handling", install: true }
     - { name: eza, desc: "Modern replacement for ls", install: true }
-    - { name: tree, desc: "Recursive directory listing", install: true }
     - { name: fd, desc: "Fast alternative to find", install: true }
+    - { name: duf, desc: "Modern df replacement with color-coded output", install: true }
     - { name: ncdu, desc: "NCurses Disk Usage analyzer", install: true }
+    - { name: dust, desc: "Modern du replacement with visual tree", install: true }
     - { name: trash, desc: "Safe CLI trash utility", install: true }
-    - { name: atool, desc: "Script for managing file archives", install: true }
     - { name: p7zip, desc: "7zip archive support", install: true }
     - { name: rsync, desc: "Fast, versatile file-copying tool", install: true }
     - { name: pv, desc: "Pipe viewer for monitoring data flow", install: true }
@@ -34,12 +34,12 @@ brew:
     - { name: pkg-config, desc: "Helper for compiling applications", install: true }
     - { name: shellcheck, desc: "Static analysis for shell scripts", install: true }
     - { name: entr, desc: "Run commands when files change", install: true }
+    - { name: watchexec, desc: "Execute commands on file changes with filtering", install: true }
     - { name: direnv, desc: "Directory-based environment variables", install: true }
     - { name: sqlite, desc: "SQLite database CLI", install: true }
     - { name: lsof, desc: "List open files", install: true }
     - { name: hyperfine, desc: "Command-line benchmarking tool", install: true }
     - { name: btop, desc: "Resource monitor for CPU, memory, disk, network", install: true }
-    - { name: bpython, desc: "Fancy Python interpreter interface", install: true }
     - { name: tldr, desc: "Simplified community-driven man pages", install: true }
     - { name: ffmpeg, desc: "Multimedia framework for video/audio", install: true }
     - { name: age, desc: "Modern file encryption", install: true }
@@ -63,7 +63,6 @@ cask:
   terminal:
     - { name: ghostty, desc: "GPU-accelerated terminal emulator", install: true }
     - { name: kitty, desc: "GPU-based terminal emulator", install: true }
-    - { name: alacritty, desc: "OpenGL terminal emulator", install: true }
 
   apps:
     - { name: obsidian, desc: "Knowledge base / Markdown notes", install: true }
@@ -85,6 +84,8 @@ cask:
     - { name: docker, desc: "Docker Desktop", install: true }
     - { name: cursor, desc: "AI Code Editor", install: true }
     - { name: amethyst, desc: "Tiling window manager", install: true }
+    - { name: raycast, desc: "Extensible launcher with clipboard, snippets, extensions", install: true }
+    - { name: dash, desc: "Offline API documentation browser", install: true }
 
   fonts:
     - { name: font-jetbrains-mono-nerd-font, desc: "JetBrains Mono Nerd Font", install: true }
@@ -103,6 +104,8 @@ cargo_tools:
   - { name: sd, desc: "Modern sed replacement", install: true }
   - { name: tokei, desc: "Code statistics by language", install: true }
   - { name: procs, desc: "Modern ps replacement", install: true }
+  - { name: ouch, desc: "Unified compression/decompression for all archive formats", install: true }
+  - { name: yazi-fm, desc: "Blazing fast terminal file manager", install: true }
 
 # Go (go install)
 go_tools:
@@ -121,6 +124,7 @@ uv_tools:
   - { name: jupyter-core, desc: "Jupyter core functionality", install: true }
   - { name: jupyter-client, desc: "Jupyter protocol client", install: true }
   - { name: huggingface-hub, desc: "Hugging Face Hub client", install: true }
+  - { name: harlequin, desc: "Terminal SQL IDE with visual editor and autocomplete", install: true }
 
 # Node.js (npm install -g)
 npm:
@@ -135,7 +139,6 @@ themes:
   default: nord
   available:
     - catppuccin
-    - cosmic-dark
     - ethereal
     - everforest
     - gruvbox
@@ -149,7 +152,6 @@ themes:
     - rose-pine
     - tokyo-night
     - catppuccin-latte
-    - cosmic-light
     - flexoki-light
   paths:
     base: ~/.local/share/macmikase/themes

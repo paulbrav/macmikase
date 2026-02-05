@@ -111,6 +111,71 @@ macmikase
 
 Edit `macmikase.yaml` to customize your installation.
 
+## API Keys & Secrets
+
+**Never commit secrets to version control.** The bashrc sources several local files for secrets and machine-specific config:
+
+| File | Purpose |
+|------|---------|
+| `~/.config/shell/secrets.sh` | API keys, tokens, credentials |
+| `~/.bashrc.local` | Machine-specific bashrc additions |
+| `~/.bash_aliases` | Additional aliases |
+| `~/.aliases.local` | Machine-specific aliases |
+
+### Option 1: Manual secrets file
+
+Create your secrets file:
+
+```bash
+mkdir -p ~/.config/shell
+touch ~/.config/shell/secrets.sh
+chmod 600 ~/.config/shell/secrets.sh  # Restrict permissions
+```
+
+Add your API keys:
+
+```bash
+# ~/.config/shell/secrets.sh
+
+# OpenAI
+export OPENAI_API_KEY="sk-..."
+
+# Anthropic
+export ANTHROPIC_API_KEY="sk-ant-..."
+
+# GitHub (for gh CLI, if not using gh auth login)
+export GITHUB_TOKEN="ghp_..."
+
+# Hugging Face
+export HF_TOKEN="hf_..."
+
+# AWS
+export AWS_ACCESS_KEY_ID="..."
+export AWS_SECRET_ACCESS_KEY="..."
+
+# Any other service-specific keys...
+```
+
+### Option 2: Bitwarden integration (recommended)
+
+The chezmoi template at `chezmoi/dot_config/shell/secrets.sh.tmpl` can fetch secrets from Bitwarden at apply time:
+
+```bash
+# 1. Login to Bitwarden
+bw login
+
+# 2. Unlock and export session
+export BW_SESSION="$(bw unlock --raw)"
+
+# 3. Edit the template to reference your Bitwarden items
+#    Example: export OPENAI_API_KEY="{{ (bitwarden "item" "OpenAI API").login.password }}"
+
+# 4. Apply chezmoi (secrets are fetched from Bitwarden)
+chezmoi apply
+```
+
+Store API keys in Bitwarden as Login items with the key in the password field, then reference them in the template. This keeps secrets out of any files on disk and synced across machines.
+
 ## License
 
 MIT

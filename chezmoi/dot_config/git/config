@@ -13,7 +13,7 @@
 	autoSetupRemote = true   # Automatically set upstream branch on push
 [diff]
 	algorithm = histogram    # Clearer diffs on moved/edited lines
-	colorMoved = plain       # Highlight moved blocks in diffs
+	colorMoved = default     # Highlight moved blocks in diffs
 	mnemonicPrefix = true    # More intuitive refs in diff output
 [commit]
 	verbose = true           # Include diff comment in commit message template
@@ -26,6 +26,20 @@
 [rerere]
 	enabled = true           # Record and reuse conflict resolutions
 	autoupdate = true        # Apply stored conflict resolutions automatically
+
+# Delta - beautiful git diffs (https://github.com/dandavison/delta)
+[core]
+	pager = delta
+[interactive]
+	diffFilter = delta --color-only
+[delta]
+	navigate = true          # Use n/N to jump between diff sections
+	dark = true              # Use dark mode (set to false for light terminals)
+	line-numbers = true      # Show line numbers
+	side-by-side = false     # Set to true for side-by-side view
+	hyperlinks = true        # Clickable file paths in supporting terminals
+[merge]
+	conflictstyle = zdiff3   # Better merge conflict markers
 
 
 

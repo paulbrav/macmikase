@@ -53,10 +53,10 @@ brew:
     - { name: bun, desc: "Fast all-in-one JavaScript runtime", install: true }
     - { name: uv, desc: "Fast Python package installer", install: true }
     - { name: starship, desc: "Blazing-fast shell prompt", install: true }
-    - { name: juliaup, desc: "Julia version manager", install: false }
+    - { name: juliaup, desc: "Julia version manager", install: true }
 
   yubikey:
-    - { name: ykman, desc: "YubiKey Manager CLI", install: false }
+    - { name: ykman, desc: "YubiKey Manager CLI", install: true }
 
 # Homebrew casks
 cask:
@@ -79,7 +79,7 @@ cask:
     - { name: bitwarden, desc: "Password manager", install: true }
     - { name: protonvpn, desc: "VPN service", install: true }
     - { name: chromium, desc: "Open source browser", install: true }
-    - { name: brave-browser, desc: "Privacy browser", install: false }
+    - { name: brave-browser, desc: "Privacy browser", install: true }
     - { name: spotify, desc: "Music streaming", install: false }
     - { name: docker, desc: "Docker Desktop", install: true }
     - { name: cursor, desc: "AI Code Editor", install: true }
@@ -129,6 +129,7 @@ uv_tools:
 # Node.js (npm install -g)
 npm:
   - { name: "@openai/codex", desc: "OpenAI Codex CLI", version: latest, install: true }
+  - { name: "@anthropic-ai/claude-code", desc: "Claude Code CLI", version: latest, install: true }
   - { name: "@bitwarden/cli", desc: "Bitwarden CLI", version: latest, install: true }
   - { name: "@withgraphite/graphite-cli", desc: "Git branch stacking CLI", version: latest, install: true }
 

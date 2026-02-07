@@ -26,7 +26,7 @@ log_line() {
 }
 
 safe_clear() {
-    clear >/dev/null 2>&1 || printf '\033c' >/dev/null 2>&1 || true
+    clear 2>/dev/null || printf '\033c' || true
 }
 
 list_config_names() {
@@ -462,21 +462,27 @@ run_ansible() {
     # Homebrew can require sudo password entry; run in foreground with TTY so prompts work.
     if [[ "$tags" == "homebrew" ]] && has_cask_installs; then
         gum style --foreground "$DIM" "  Running homebrew phase in foreground (sudo prompts enabled)"
-        uv run --extra dev ansible-playbook -i inventory.yml playbook.yml \
+        if uv run --extra dev ansible-playbook -i inventory.yml playbook.yml \
             -e "config_file=$CONFIG_FILE" \
             --tags "$tags" \
-            2>&1 | tee "$phase_log"
-        rc=${pipestatus[1]}
+            2>&1 | tee "$phase_log"; then
+            rc=0
+        else
+            rc=$?
+        fi
     else
-        gum spin \
+        if gum spin \
             --spinner.foreground "$NEON_PINK" \
             --title.foreground "$NEON_CYAN" \
             --spinner dot \
             --title "  処理中... $desc" \
             -- zsh -c "uv run --extra dev ansible-playbook -i inventory.yml playbook.yml \
                 -e 'config_file=$CONFIG_FILE' \
-                --tags '$tags' > '$phase_log' 2>&1"
-        rc=$?
+                --tags '$tags' > '$phase_log' 2>&1"; then
+            rc=0
+        else
+            rc=$?
+        fi
     fi
 
     if [[ "$rc" -eq 0 ]]; then

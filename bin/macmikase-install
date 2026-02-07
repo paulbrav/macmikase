@@ -4,7 +4,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(dirname "$SCRIPT_DIR")"
-CONFIG_FILE="${CONFIG_FILE:-${MACMIKASE_CONFIG:-$REPO_DIR/macmikase.yaml}}"
+DEFAULT_CONFIG_FILE="$REPO_DIR/macmikase.yaml"
+CONFIG_FILE="${CONFIG_FILE:-${MACMIKASE_CONFIG:-$DEFAULT_CONFIG_FILE}}"
 LOG_FILE="/tmp/macmikase-install-$(date +%Y%m%d-%H%M%S).log"
 
 usage() {
@@ -51,16 +52,47 @@ NEON_ORANGE="208"
 NEON_RED="196"
 DIM="241"
 
-ensure_brew() {
+find_brew_binary() {
     if command -v brew >/dev/null 2>&1; then
+        command -v brew
+        return 0
+    fi
+    if [[ -x /opt/homebrew/bin/brew ]]; then
+        echo "/opt/homebrew/bin/brew"
+        return 0
+    fi
+    if [[ -x /usr/local/bin/brew ]]; then
+        echo "/usr/local/bin/brew"
+        return 0
+    fi
+    return 1
+}
+
+activate_brew_shellenv() {
+    local brew_cmd
+    brew_cmd="$(find_brew_binary || true)"
+    if [[ -z "$brew_cmd" ]]; then
+        return 1
+    fi
+    eval "$("$brew_cmd" shellenv)"
+}
+
+ensure_brew() {
+    if find_brew_binary >/dev/null 2>&1; then
+        activate_brew_shellenv || true
         return
     fi
     echo "Homebrew not found. Installing..."
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-    if [[ -x /opt/homebrew/bin/brew ]]; then
-        eval "$(/opt/homebrew/bin/brew shellenv)"
-    elif [[ -x /usr/local/bin/brew ]]; then
-        eval "$(/usr/local/bin/brew shellenv)"
+    local installer="/tmp/homebrew-install.sh"
+    if ! curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh -o "$installer"; then
+        echo "Error: failed to download Homebrew installer." >&2
+        exit 1
+    fi
+    /bin/bash "$installer"
+    rm -f "$installer"
+    if ! activate_brew_shellenv; then
+        echo "Error: Homebrew installation succeeded, but brew is not available on PATH." >&2
+        exit 1
     fi
 }
 
@@ -69,11 +101,29 @@ ensure_gum() {
         return
     fi
     echo "gum not found. Installing..."
-    brew install gum
+    local brew_cmd
+    brew_cmd="$(find_brew_binary || true)"
+    if [[ -z "$brew_cmd" ]]; then
+        echo "Error: brew is required to install gum." >&2
+        exit 1
+    fi
+    "$brew_cmd" install gum
 }
 
 ensure_uv() {
     if command -v uv >/dev/null 2>&1; then
+        return
+    fi
+    if [[ -x "$HOME/.local/bin/uv" ]]; then
+        export PATH="$HOME/.local/bin:$PATH"
+        return
+    fi
+    if [[ -x /opt/homebrew/bin/uv ]]; then
+        export PATH="/opt/homebrew/bin:$PATH"
+        return
+    fi
+    if [[ -x /usr/local/bin/uv ]]; then
+        export PATH="/usr/local/bin:$PATH"
         return
     fi
     echo "uv not found. Installing..."
@@ -81,6 +131,56 @@ ensure_uv() {
     sh /tmp/uv-install.sh
     rm /tmp/uv-install.sh
     export PATH="$HOME/.local/bin:$PATH"
+    if ! command -v uv >/dev/null 2>&1; then
+        echo "Error: uv installation completed, but uv is not available on PATH." >&2
+        exit 1
+    fi
+}
+
+resolve_repo_dir() {
+    if [[ -f "$REPO_DIR/ansible/playbook.yml" ]]; then
+        return
+    fi
+    if [[ -f "$PWD/ansible/playbook.yml" ]]; then
+        REPO_DIR="$PWD"
+        if [[ "$CONFIG_FILE" == "$DEFAULT_CONFIG_FILE" ]]; then
+            CONFIG_FILE="$REPO_DIR/macmikase.yaml"
+        fi
+    fi
+}
+
+validate_inputs() {
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        gum style --foreground "$NEON_RED" "  ✗ Config not found: $CONFIG_FILE"
+        exit 1
+    fi
+    CONFIG_FILE="$(cd "$(dirname "$CONFIG_FILE")" && pwd)/$(basename "$CONFIG_FILE")"
+
+    if [[ ! -f "$REPO_DIR/ansible/playbook.yml" ]]; then
+        gum style --foreground "$NEON_RED" "  ✗ ansible/playbook.yml not found under: $REPO_DIR"
+        gum style --foreground "$DIM" "  Run 'make install' from the repository root."
+        exit 1
+    fi
+}
+
+ensure_ansible_collections() {
+    local requirements_file="$REPO_DIR/ansible/requirements.yml"
+    if [[ ! -f "$requirements_file" ]]; then
+        return 0
+    fi
+
+    if gum spin \
+        --spinner.foreground "$NEON_PINK" \
+        --title.foreground "$NEON_CYAN" \
+        --spinner dot \
+        --title "  依存関係... ansible collections" \
+        -- bash -c "uv run --extra dev ansible-galaxy collection install -r '$requirements_file' >> '$LOG_FILE' 2>&1"; then
+        gum style --foreground "$NEON_GREEN" "  ✓ ansible collections"
+        return 0
+    fi
+
+    gum style --foreground "$NEON_RED" "  ✗ ansible collections - $LOG_FILE"
+    return 1
 }
 
 banner() {
@@ -202,6 +302,7 @@ success_banner() {
     echo ""
     gum style --foreground "$NEON_CYAN" "  次のステップ:"
     echo ""
+    gum style --foreground "$DIM" "    exec zsh -l             シェルを再読み込み"
     gum style --foreground "$DIM" "    macmikase-theme <name>  テーマを変更"
     gum style --foreground "$DIM" "    macmikase               メニュー"
     gum style --foreground "$DIM" "    $LOG_FILE"
@@ -235,6 +336,8 @@ main() {
     ensure_brew
     ensure_gum
     ensure_uv
+    resolve_repo_dir
+    validate_inputs
 
     banner
 
@@ -252,9 +355,12 @@ main() {
     {
         echo "=== MACMIKASE INSTALL LOG ==="
         echo "Started: $(date)"
+        echo "Repo: $REPO_DIR"
         echo "Config: $CONFIG_FILE"
         echo ""
     } > "$LOG_FILE"
+
+    ensure_ansible_collections || { error_banner; exit 1; }
 
     phase_header "1" "4" "Homebrew" "Formulae, casks, fonts"
     run_ansible "homebrew" "homebrew" || { error_banner; exit 1; }

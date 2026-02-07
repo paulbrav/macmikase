@@ -60,6 +60,8 @@
   ansible.builtin.command:
     cmd: which go
   register: runtimes_go_check
+  environment:
+    PATH: "{{ local_bin }}:{{ homebrew_prefix }}/bin:{{ ansible_env.PATH }}"
   changed_when: false
   failed_when: false
 
@@ -80,6 +82,8 @@
     - runtimes_go_check.rc == 0
   loop_control:
     label: "{{ item.name }}"
+  environment:
+    PATH: "{{ local_bin }}:{{ homebrew_prefix }}/bin:{{ ansible_env.PATH }}"
   changed_when: "'installed' in stdout"
 
 - name: Normalize npm packages
@@ -102,12 +106,18 @@
   when: npm_list is defined and npm_list | length > 0
   loop_control:
     label: "{{ item.name }}"
+  environment:
+    PATH: "{{ local_bin }}:{{ homebrew_prefix }}/bin:{{ ansible_env.PATH }}"
   changed_when: true
 
 - name: Check for uv
-  ansible.builtin.stat:
-    path: "{{ homebrew_prefix }}/bin/uv"
-  register: runtimes_uv
+  ansible.builtin.command:
+    cmd: which uv
+  register: runtimes_uv_check
+  environment:
+    PATH: "{{ local_bin }}:{{ homebrew_prefix }}/bin:{{ ansible_env.PATH }}"
+  changed_when: false
+  failed_when: false
 
 - name: Normalize uv tools
   ansible.builtin.set_fact:
@@ -116,13 +126,15 @@
 
 - name: Install uv tools
   ansible.builtin.shell: |
-    "{{ homebrew_prefix }}/bin/uv" tool install --reinstall {{ item.name }}
+    "{{ runtimes_uv_check.stdout }}" tool install --reinstall {{ item.name }}
   args:
     executable: /bin/bash
   loop: "{{ uv_list | default([]) | selectattr('install', 'defined') | selectattr('install', 'equalto', true) | list + uv_list | default([]) | rejectattr('install', 'defined') | list }}"
   when:
-    - runtimes_uv.stat.exists
+    - runtimes_uv_check.rc == 0
     - uv_list is defined and uv_list | length > 0
   loop_control:
     label: "{{ item.name }}"
+  environment:
+    PATH: "{{ local_bin }}:{{ homebrew_prefix }}/bin:{{ ansible_env.PATH }}"
   changed_when: true

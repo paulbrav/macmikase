@@ -43,6 +43,32 @@
         msg: "Loading configuration from: {{ config_file }}"
       tags: [always]
 
+    - name: Check for /opt/homebrew brew binary
+      ansible.builtin.stat:
+        path: /opt/homebrew/bin/brew
+      register: brew_arm_stat
+
+    - name: Check for /usr/local brew binary
+      ansible.builtin.stat:
+        path: /usr/local/bin/brew
+      register: brew_intel_stat
+
+    - name: Resolve Homebrew prefix for this host
+      ansible.builtin.set_fact:
+        homebrew_prefix: >-
+          {{ '/opt/homebrew' if brew_arm_stat.stat.exists
+             else ('/usr/local' if brew_intel_stat.stat.exists
+                   else ('/opt/homebrew' if ansible_facts['architecture'] == 'arm64' else '/usr/local')) }}
+        brew_bin: >-
+          {{ '/opt/homebrew/bin/brew' if brew_arm_stat.stat.exists
+             else ('/usr/local/bin/brew' if brew_intel_stat.stat.exists
+                   else (('/opt/homebrew' if ansible_facts['architecture'] == 'arm64' else '/usr/local') ~ '/bin/brew')) }}
+
+    - name: Show resolved Homebrew location
+      ansible.builtin.debug:
+        msg: "Using Homebrew at: {{ brew_bin }}"
+      tags: [always]
+
     - name: Check for Homebrew
       ansible.builtin.stat:
         path: "{{ brew_bin }}"
@@ -50,8 +76,13 @@
 
     - name: Install Homebrew (if missing)
       ansible.builtin.shell: |
-        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+        set -euo pipefail
+        installer="$(mktemp /tmp/homebrew-install.XXXXXX.sh)"
+        trap 'rm -f "$installer"' EXIT
+        curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh -o "$installer"
+        /bin/bash "$installer"
       args:
+        executable: /bin/bash
         creates: "{{ brew_bin }}"
       when: not brew_stat.stat.exists
 

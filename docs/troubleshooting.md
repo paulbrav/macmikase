@@ -7,8 +7,22 @@ Common issues and solutions for macmikase.
 If Homebrew isn't available:
 
 ```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh -o /tmp/homebrew-install.sh
+/bin/bash /tmp/homebrew-install.sh
+rm -f /tmp/homebrew-install.sh
 ```
+
+If install finished but `brew` is still not found in your current shell:
+
+```bash
+if [ -x /opt/homebrew/bin/brew ]; then
+  eval "$(/opt/homebrew/bin/brew shellenv)"
+elif [ -x /usr/local/bin/brew ]; then
+  eval "$(/usr/local/bin/brew shellenv)"
+fi
+```
+
+Then restart your terminal (or run `exec zsh`).
 
 ## gum Not Found
 

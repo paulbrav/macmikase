@@ -44,7 +44,7 @@ setup:
 	@echo "==> Installing Python dependencies (including ansible)..."
 	$(UV) sync --all-extras
 	@echo "==> Installing Ansible collections..."
-	$(UV) run ansible-galaxy collection install community.general
+	$(UV) run --extra dev ansible-galaxy collection install -r $(ANSIBLE_DIR)/requirements.yml
 	@echo "==> Ensuring chezmoi is installed..."
 	@if ! command -v chezmoi >/dev/null 2>&1; then \
 		echo "Installing chezmoi..."; \
@@ -66,10 +66,14 @@ install-verbose:
 	@echo "║  Task timing is shown - longer tasks will display elapsed time     ║"
 	@echo "╚═══════════════════════════════════════════════════════════════════╝"
 	@echo ""
+	@echo "==> Ensuring Ansible collections..."
+	$(UV) run --extra dev ansible-galaxy collection install -r $(ANSIBLE_DIR)/requirements.yml
 	cd $(ANSIBLE_DIR) && $(UV) run --extra dev ansible-playbook -i inventory.yml playbook.yml -e "config_file=$(realpath $(CONFIG_FILE))"
 
 dry-run:
 	@echo "==> Running Ansible in check mode (no changes)..."
+	@echo "==> Ensuring Ansible collections..."
+	$(UV) run --extra dev ansible-galaxy collection install -r $(ANSIBLE_DIR)/requirements.yml
 	cd $(ANSIBLE_DIR) && $(UV) run --extra dev ansible-playbook -i inventory.yml playbook.yml --check -e "config_file=$(realpath $(CONFIG_FILE))"
 
 update:

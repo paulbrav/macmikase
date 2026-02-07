@@ -125,6 +125,21 @@
 # Shell integration
 # ==========================================================================
 
+- name: Add Homebrew and macmikase to .zprofile
+  ansible.builtin.blockinfile:
+    path: "{{ ansible_env.HOME }}/.zprofile"
+    marker: "# {mark} MACMIKASE MANAGED BLOCK"
+    block: |
+      # macmikase
+      export PATH="{{ local_bin }}:$PATH"
+      if [ -x "/opt/homebrew/bin/brew" ]; then
+        eval "$("/opt/homebrew/bin/brew" shellenv)"
+      elif [ -x "/usr/local/bin/brew" ]; then
+        eval "$("/usr/local/bin/brew" shellenv)"
+      fi
+    create: true
+    mode: "0644"
+
 - name: Add macmikase to .zshrc
   ansible.builtin.blockinfile:
     path: "{{ ansible_env.HOME }}/.zshrc"
@@ -132,8 +147,10 @@
     block: |
       # macmikase
       export PATH="{{ local_bin }}:$PATH"
-      if [ -x "{{ homebrew_prefix }}/bin/brew" ]; then
-        eval "$(\"{{ homebrew_prefix }}/bin/brew\" shellenv)"
+      if [ -x "/opt/homebrew/bin/brew" ]; then
+        eval "$("/opt/homebrew/bin/brew" shellenv)"
+      elif [ -x "/usr/local/bin/brew" ]; then
+        eval "$("/usr/local/bin/brew" shellenv)"
       fi
       [ -f "{{ config_dir }}/shell/macmikase.sh" ] && source "{{ config_dir }}/shell/macmikase.sh"
     create: true
@@ -146,8 +163,10 @@
     block: |
       # macmikase
       export PATH="{{ local_bin }}:$PATH"
-      if [ -x "{{ homebrew_prefix }}/bin/brew" ]; then
-        eval "$(\"{{ homebrew_prefix }}/bin/brew\" shellenv)"
+      if [ -x "/opt/homebrew/bin/brew" ]; then
+        eval "$("/opt/homebrew/bin/brew" shellenv)"
+      elif [ -x "/usr/local/bin/brew" ]; then
+        eval "$("/usr/local/bin/brew" shellenv)"
       fi
       [ -f "{{ config_dir }}/shell/macmikase.sh" ] && source "{{ config_dir }}/shell/macmikase.sh"
     create: true
@@ -158,16 +177,20 @@
 # ==========================================================================
 
 - name: Check if uv is available
-  ansible.builtin.stat:
-    path: "{{ homebrew_prefix }}/bin/uv"
-  register: dotfiles_uv_stat
+  ansible.builtin.command:
+    cmd: which uv
+  register: dotfiles_uv_check
+  changed_when: false
+  failed_when: false
+  environment:
+    PATH: "{{ local_bin }}:{{ homebrew_prefix }}/bin:{{ ansible_env.PATH }}"
 
 - name: Install theme-tui via uv
   ansible.builtin.command:
-    cmd: "{{ homebrew_prefix }}/bin/uv tool install --reinstall {{ playbook_dir }}/.."
+    cmd: "{{ dotfiles_uv_check.stdout }} tool install --reinstall {{ playbook_dir }}/.."
   environment:
     PATH: "{{ local_bin }}:{{ homebrew_prefix }}/bin:{{ ansible_env.PATH }}"
-  when: dotfiles_uv_stat.stat.exists
+  when: dotfiles_uv_check.rc == 0
   register: dotfiles_theme_tui_install
   changed_when: "'Installed' in dotfiles_theme_tui_install.stdout"
 

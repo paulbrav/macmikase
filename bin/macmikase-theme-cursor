@@ -1,10 +1,12 @@
-#!/usr/bin/env bash
+#!/usr/bin/env zsh
 # macmikase-theme-cursor - Apply theme to Cursor, VS Code, and Antigravity
 # This script reads cursor.json from a theme and applies it to VS Code forks
+emulate -L zsh
 set -euo pipefail
 
 # Source shared library
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCRIPT_NAME="$(basename "$0")"
 # shellcheck source=bin/macmikase-lib.sh
 source "$SCRIPT_DIR/macmikase-lib.sh"
 
@@ -21,7 +23,7 @@ find_editor_cmd() {
 }
 
 usage() {
-    echo "Usage: $(basename "$0") <theme-name> [options]"
+    echo "Usage: $SCRIPT_NAME <theme-name> [options]"
     echo ""
     echo "Apply a theme to Cursor, VS Code, and Antigravity by updating settings"
     echo "and installing extensions."
@@ -41,9 +43,9 @@ usage() {
     echo "  - Antigravity  (~/Library/Application Support/Antigravity/User/settings.json)"
     echo ""
     echo "Examples:"
-    echo "  $(basename "$0") catppuccin"
-    echo "  $(basename "$0") tokyo-night --no-reload"
-    echo "  $(basename "$0") gruvbox --cursor-only"
+    echo "  $SCRIPT_NAME catppuccin"
+    echo "  $SCRIPT_NAME tokyo-night --no-reload"
+    echo "  $SCRIPT_NAME gruvbox --cursor-only"
 }
 
 # Parse arguments

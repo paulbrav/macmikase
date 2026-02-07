@@ -1,11 +1,13 @@
-#!/usr/bin/env bash
+#!/usr/bin/env zsh
 # macmikase - Main interactive menu entrypoint for macmikase on macOS
 # Uses gum for a stylish CLI interface.
 
+emulate -L zsh
 set -euo pipefail
+setopt no_nomatch
 
 # Find script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # Source shared helpers (themes dir discovery, etc.)
 # shellcheck source=bin/macmikase-lib.sh
@@ -78,5 +80,5 @@ while true; do
     main_menu
     echo ""
     echo "Press any key to return to menu..."
-    read -r -n 1
+    read -r -k 1
 done

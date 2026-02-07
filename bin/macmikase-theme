@@ -1,11 +1,14 @@
-#!/usr/bin/env bash
+#!/usr/bin/env zsh
 # macmikase-theme - Switch themes using chezmoi and helper scripts
 # This script updates the theme in chezmoi data, reapplies dotfiles, and
 # calls per-app helper scripts for live theme updates
+emulate -L zsh
 set -euo pipefail
+setopt no_nomatch
 
 # Find script directory for helper scripts
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCRIPT_NAME="$(basename "$0")"
 
 # Source shared library
 # shellcheck source=bin/macmikase-lib.sh
@@ -14,7 +17,7 @@ source "$SCRIPT_DIR/macmikase-lib.sh"
 THEMES_DIR="$(find_themes_dir)"
 
 usage() {
-    echo "Usage: $(basename "$0") <theme-name> [options]"
+    echo "Usage: $SCRIPT_NAME <theme-name> [options]"
     echo ""
     echo "Switch to a different theme by updating chezmoi data, reapplying dotfiles,"
     echo "and calling per-app helper scripts for live theme updates."
@@ -37,9 +40,9 @@ usage() {
     fi
     echo ""
     echo "Examples:"
-    echo "  $(basename "$0") nord"
-    echo "  $(basename "$0") tokyo-night --no-cursor"
-    echo "  $(basename "$0") catppuccin --no-chezmoi  # Only update running apps"
+    echo "  $SCRIPT_NAME nord"
+    echo "  $SCRIPT_NAME tokyo-night --no-cursor"
+    echo "  $SCRIPT_NAME catppuccin --no-chezmoi  # Only update running apps"
 }
 
 # Parse arguments

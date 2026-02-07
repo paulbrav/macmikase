@@ -1,7 +1,7 @@
 # Makefile for macmikase
 # Unified development commands for package installation, dotfile management, and linting
 
-.PHONY: install setup update lint test test-cov theme clean fmt help dry-run validate install-verbose dotfiles menu
+.PHONY: install setup update lint test test-cov theme clean fmt help dry-run validate install-verbose dotfiles menu lint-zsh
 
 ANSIBLE_DIR := ansible
 CHEZMOI_SOURCE := $(PWD)/chezmoi
@@ -92,11 +92,20 @@ theme:
 menu:
 	./bin/macmikase
 
-lint: lint-shell lint-python lint-ansible
+lint: lint-zsh lint-shell lint-python lint-ansible
+
+lint-zsh:
+	@echo "==> Running zsh syntax checks on bin/*..."
+	@for f in bin/*; do zsh -n "$$f"; done
 
 lint-shell:
-	@echo "==> Running shellcheck on bin/*..."
-	shellcheck bin/*
+	@echo "==> Running shellcheck on bash scripts..."
+	@bash_files=$$(grep -l '^#!/usr/bin/env bash' bin/* || true); \
+	if [ -n "$$bash_files" ]; then \
+		shellcheck $$bash_files; \
+	else \
+		echo "No bash scripts found under bin/ (zsh-only scripts use lint-zsh)."; \
+	fi
 
 lint-python:
 	@echo "==> Running ruff on src/..."

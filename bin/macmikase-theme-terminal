@@ -1,15 +1,17 @@
-#!/usr/bin/env bash
+#!/usr/bin/env zsh
 # macmikase-theme-terminal - Reload terminal emulators after theme change
 # This script sends reload signals to running terminal emulators
+emulate -L zsh
 set -euo pipefail
 
 # Source shared library
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCRIPT_NAME="$(basename "$0")"
 # shellcheck source=bin/macmikase-lib.sh
 source "$SCRIPT_DIR/macmikase-lib.sh"
 
 usage() {
-    echo "Usage: $(basename "$0") [options]"
+    echo "Usage: $SCRIPT_NAME [options]"
     echo ""
     echo "Send reload signals to running terminal emulators (kitty, ghostty)."
     echo "These terminals support live config reload via SIGUSR1."

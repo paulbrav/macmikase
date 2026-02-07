@@ -1,11 +1,13 @@
-#!/usr/bin/env bash
+#!/usr/bin/env zsh
 # Manage Cursor/VS Code extensions from a list
+emulate -L zsh
 set -euo pipefail
 
 DEFAULT_CURSOR_EXTENSIONS="$HOME/Library/Application Support/Cursor/extensions.txt"
 DEFAULT_CODE_EXTENSIONS="$HOME/Library/Application Support/Code/extensions.txt"
 EXTENSIONS_FILE="${EXTENSIONS_FILE:-$DEFAULT_CURSOR_EXTENSIONS}"
 CURSOR_CMD="${CURSOR_CMD:-cursor}"
+SCRIPT_NAME="$(basename "$0")"
 
 # Check if cursor command exists, fall back to code
 if ! command -v "$CURSOR_CMD" >/dev/null 2>&1; then
@@ -22,7 +24,7 @@ fi
 
 usage() {
     cat << EOF
-Usage: $(basename "$0") <command>
+Usage: $SCRIPT_NAME <command>
 
 Commands:
   install     Install all extensions from the list
@@ -35,15 +37,15 @@ Options:
   -h, --help  Show this help message
 
 Examples:
-  $(basename "$0") install              # Install all extensions
-  $(basename "$0") export               # Save current extensions to file
-  $(basename "$0") diff                 # See what's missing
+  $SCRIPT_NAME install              # Install all extensions
+  $SCRIPT_NAME export               # Save current extensions to file
+  $SCRIPT_NAME diff                 # See what's missing
 EOF
 }
 
 # Parse extensions file, ignoring comments and empty lines
 parse_extensions() {
-    grep -v '^\s*#' "$EXTENSIONS_FILE" 2>/dev/null | grep -v '^\s*$' | tr -d ' '
+    grep -v '^[[:space:]]*#' "$EXTENSIONS_FILE" 2>/dev/null | grep -v '^[[:space:]]*$' | tr -d ' '
 }
 
 # Get currently installed extensions
@@ -54,7 +56,7 @@ get_installed() {
 cmd_install() {
     if [[ ! -f "$EXTENSIONS_FILE" ]]; then
         echo "Extensions file not found: $EXTENSIONS_FILE"
-        echo "Run '$(basename "$0") export' first to create it, or create manually."
+        echo "Run '$SCRIPT_NAME export' first to create it, or create manually."
         exit 1
     fi
 
@@ -89,7 +91,7 @@ cmd_export() {
     {
         echo "# Cursor/VS Code Extensions"
         echo "# Exported on $(date '+%Y-%m-%d %H:%M:%S')"
-        echo "# Install with: $(basename "$0") install"
+        echo "# Install with: $SCRIPT_NAME install"
         echo ""
         get_installed
     } > "$EXTENSIONS_FILE"
@@ -168,6 +170,3 @@ case "${COMMAND:-}" in
         exit 1
         ;;
 esac
-
-
-

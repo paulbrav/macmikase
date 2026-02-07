@@ -1,5 +1,6 @@
-#!/usr/bin/env bash
+#!/usr/bin/env zsh
 # macmikase-update - Updates all installed software and system components on macOS
+emulate -L zsh
 set -euo pipefail
 
 echo "==> Starting macmikase system update..."

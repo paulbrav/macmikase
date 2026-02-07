@@ -1,6 +1,8 @@
-#!/usr/bin/env bash
+#!/usr/bin/env zsh
 # Shared functions for macmikase theme scripts
 # This library is sourced by bin/ scripts and provides common utilities.
+emulate -L zsh
+setopt no_nomatch
 
 # Find themes directory using Python CLI (canonical source) with fallbacks
 find_themes_dir() {
@@ -39,7 +41,7 @@ find_themes_dir() {
 
     # 5. Repo location (relative to this script)
     local script_dir
-    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    script_dir="$(cd "$(dirname "$0")" && pwd)"
     local repo_themes="$script_dir/../themes"
     if [[ -d "$repo_themes" ]]; then
         (cd "$repo_themes" && pwd)
@@ -60,7 +62,7 @@ find_themes_dir() {
 find_helper() {
     local name="$1"
     local script_dir
-    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    script_dir="$(cd "$(dirname "$0")" && pwd)"
 
     # 1. Check script directory (for development/repo usage)
     if [[ -x "$script_dir/$name" ]]; then

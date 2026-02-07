@@ -1,6 +1,7 @@
-#!/usr/bin/env bash
+#!/usr/bin/env zsh
 # macmikase-databases - Setup development databases via Docker
 
+emulate -L zsh
 set -euo pipefail
 
 die() {

@@ -54,7 +54,8 @@
     - (runtimes_rustc_post is defined and runtimes_rustc_post.stat.exists) or runtimes_rustc.stat.exists
   loop_control:
     label: "{{ item.name }}"
-  changed_when: "'installed' in stdout"
+  register: runtimes_cargo_install
+  changed_when: "'installed' in (runtimes_cargo_install.stdout | default(''))"
 
 - name: Check for go
   ansible.builtin.command:
@@ -84,7 +85,8 @@
     label: "{{ item.name }}"
   environment:
     PATH: "{{ local_bin }}:{{ homebrew_prefix }}/bin:{{ ansible_env.PATH }}"
-  changed_when: "'installed' in stdout"
+  register: runtimes_go_install
+  changed_when: "'installed' in (runtimes_go_install.stdout | default(''))"
 
 - name: Normalize npm packages
   ansible.builtin.set_fact:

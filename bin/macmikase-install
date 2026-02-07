@@ -1,16 +1,189 @@
-#!/usr/bin/env bash
+#!/usr/bin/env zsh
 # macmikase-install - Japanese cyberpunk themed system installer for macOS
+if [ -z "${ZSH_VERSION:-}" ]; then
+    exec zsh "$0" "$@"
+fi
+emulate -L zsh
 set -euo pipefail
+setopt no_nomatch
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCRIPT_NAME="$(basename "$0")"
 REPO_DIR="$(dirname "$SCRIPT_DIR")"
 DEFAULT_CONFIG_FILE="$REPO_DIR/macmikase.yaml"
 CONFIG_FILE="${CONFIG_FILE:-${MACMIKASE_CONFIG:-$DEFAULT_CONFIG_FILE}}"
 LOG_FILE="/tmp/macmikase-install-$(date +%Y%m%d-%H%M%S).log"
+SUDO_KEEPALIVE_PID=""
+UI_MODE="${MACMIKASE_UI:-fancy}"
+
+log_line() {
+    # Best-effort structured log line for installer-level events.
+    local level="$1"
+    shift
+    if [[ -n "${LOG_FILE:-}" ]]; then
+        printf '[%s] [%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$level" "$*" >> "$LOG_FILE"
+    fi
+}
+
+safe_clear() {
+    clear >/dev/null 2>&1 || printf '\033c' >/dev/null 2>&1 || true
+}
+
+list_config_names() {
+    local section="$1"
+    local group="${2:-}"
+
+    if [[ -n "$group" ]]; then
+        (
+            cd "$REPO_DIR" && \
+            uv run macmikase-config --config "$CONFIG_FILE" list "$section" "$group" --names-only 2>/dev/null
+        ) || true
+    else
+        (
+            cd "$REPO_DIR" && \
+            uv run macmikase-config --config "$CONFIG_FILE" list "$section" --names-only 2>/dev/null
+        ) || true
+    fi
+}
+
+print_plan_group() {
+    local title="$1"
+    local section="$2"
+    local group="${3:-}"
+    local limit="${4:-8}"
+    local -a items
+    local line
+    local count
+    local shown
+    local i
+
+    items=()
+    while IFS= read -r line; do
+        [[ -n "$line" ]] || continue
+        items+=("$line")
+    done < <(list_config_names "$section" "$group")
+    count="${#items[@]}"
+
+    if (( count == 0 )); then
+        return
+    fi
+
+    gum style --foreground "$NEON_CYAN" "  • $title ($count)"
+    shown=$count
+    if (( shown > limit )); then
+        shown=$limit
+    fi
+
+    for (( i=1; i<=shown; i++ )); do
+        gum style --foreground "$DIM" "      - ${items[$i]}"
+    done
+
+    if (( count > shown )); then
+        gum style --foreground "$DIM" "      - ... and $((count - shown)) more"
+    fi
+
+    log_line "INFO" "Plan $title count=$count"
+}
+
+show_install_plan() {
+    local theme
+    theme="$(
+        cd "$REPO_DIR" && \
+        uv run macmikase-config --config "$CONFIG_FILE" get defaults.theme --default nord 2>/dev/null
+    )"
+    if [[ -z "$theme" ]]; then
+        theme="nord"
+    fi
+
+    echo ""
+    gum style --foreground "$NEON_PINK" "  インストール予定 / Install plan"
+    gum style --foreground "$DIM" "  Theme: $theme"
+    log_line "INFO" "Plan theme=$theme"
+
+    print_plan_group "Brew Core" "brew" "core" 8
+    print_plan_group "Brew Dev" "brew" "dev" 8
+    print_plan_group "Casks (Apps)" "cask" "apps" 8
+    print_plan_group "Casks (Terminal)" "cask" "terminal" 6
+    print_plan_group "Casks (Fonts)" "cask" "fonts" 6
+    print_plan_group "Cargo Tools" "cargo_tools" "" 8
+    print_plan_group "Go Tools" "go_tools" "" 8
+    print_plan_group "UV Tools" "uv_tools" "" 8
+    print_plan_group "NPM Globals" "npm" "" 8
+    print_plan_group "Web Apps" "web" "apps" 8
+    echo ""
+}
+
+has_cask_installs() {
+    local group
+    for group in terminal apps fonts; do
+        if list_config_names "cask" "$group" | sed '/^[[:space:]]*$/d' | head -n 1 | grep -q .; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+start_sudo_keepalive() {
+    (
+        while true; do
+            sudo -n true >/dev/null 2>&1 || exit 0
+            sleep 60
+        done
+    ) &
+    SUDO_KEEPALIVE_PID="$!"
+}
+
+stop_sudo_keepalive() {
+    if [[ -n "${SUDO_KEEPALIVE_PID:-}" ]]; then
+        kill "$SUDO_KEEPALIVE_PID" >/dev/null 2>&1 || true
+        wait "$SUDO_KEEPALIVE_PID" 2>/dev/null || true
+        SUDO_KEEPALIVE_PID=""
+    fi
+    unset MACMIKASE_SUDO_PASSWORD
+}
+
+ensure_sudo_session() {
+    local sudo_password
+
+    if ! has_cask_installs; then
+        log_line "INFO" "No cask installs detected; skipping sudo pre-auth"
+        return 0
+    fi
+
+    if ! command -v sudo >/dev/null 2>&1; then
+        log_line "ERROR" "sudo command not available but cask installs requested"
+        gum style --foreground "$NEON_RED" "  ✗ sudo is required for cask installs"
+        return 1
+    fi
+
+    gum style --foreground "$NEON_CYAN" "  管理者認証が必要です (Homebrew casks)"
+
+    sudo_password="${MACMIKASE_SUDO_PASSWORD:-}"
+    if [[ -z "$sudo_password" ]]; then
+        sudo_password="$(gum input --password --prompt "  Administrator password: " --placeholder "Required for Homebrew casks")"
+    fi
+
+    if [[ -z "$sudo_password" ]]; then
+        log_line "ERROR" "sudo password input was empty"
+        gum style --foreground "$NEON_RED" "  ✗ sudo password is required"
+        return 1
+    fi
+
+    if ! printf '%s\n' "$sudo_password" | sudo -S -k -v >/dev/null 2>&1; then
+        log_line "ERROR" "sudo authentication failed"
+        gum style --foreground "$NEON_RED" "  ✗ sudo authentication failed"
+        return 1
+    fi
+
+    export MACMIKASE_SUDO_PASSWORD="$sudo_password"
+    start_sudo_keepalive
+    log_line "INFO" "sudo authenticated, password exported for cask tasks, keepalive started (pid=$SUDO_KEEPALIVE_PID)"
+    return 0
+}
 
 usage() {
     cat << EOF
-Usage: $(basename "$0") [options]
+Usage: $SCRIPT_NAME [options]
 
 Options:
   -c, --config PATH   Path to macmikase.yaml (default: $CONFIG_FILE)
@@ -174,7 +347,7 @@ ensure_ansible_collections() {
         --title.foreground "$NEON_CYAN" \
         --spinner dot \
         --title "  依存関係... ansible collections" \
-        -- bash -c "uv run --extra dev ansible-galaxy collection install -r '$requirements_file' >> '$LOG_FILE' 2>&1"; then
+        -- zsh -c "uv run --extra dev ansible-galaxy collection install -r '$requirements_file' >> '$LOG_FILE' 2>&1"; then
         gum style --foreground "$NEON_GREEN" "  ✓ ansible collections"
         return 0
     fi
@@ -184,36 +357,56 @@ ensure_ansible_collections() {
 }
 
 banner() {
+    if [[ "$UI_MODE" != "fancy" ]]; then
+        safe_clear
+        echo
+        gum style --foreground "$NEON_PINK" --bold "== MACMIKASE INSTALLER =="
+        gum style --foreground "$DIM" "macOS System Configuration"
+        echo
+        return
+    fi
+
     local p="\033[38;5;${NEON_PURPLE}m"
     local r="\033[0m"
+    local pink="\033[38;5;${NEON_PINK}m"
+    local cyan="\033[38;5;${NEON_CYAN}m"
+    local dim="\033[38;5;${DIM}m"
+    local width=76
+    local line
+    local len
+    local left
+    local right
 
-    clear
+    safe_clear
     echo ""
     echo -e "  ${p}╔════════════════════════════════════════════════════════════════════════════╗${r}"
 
-    local inner_ascii
-    inner_ascii=$(gum style --foreground "$NEON_PINK" --width 76 --align center \
+    for line in \
         "░███╗░░░███╗░█████╗░░██████╗░█████╗░███╗░░░███╗██╗██╗░░██╗░█████╗░░██████╗" \
         "░████╗░████║██╔══██╗██╔════╝██╔══██╗████╗░████║██║██║░██╔╝██╔══██╗██╔════╝" \
         "░██╔████╔██║███████║╚█████╗░██║░░██║██╔████╔██║██║█████═╝░███████║╚█████╗░" \
         "░██║╚██╔╝██║██╔══██║░╚═══██╗██║░░██║██║╚██╔╝██║██║██╔═██╗░██╔══██║░╚═══██╗" \
         "░██║░╚═╝░██║██║░░██║██████╔╝╚█████╔╝██║░╚═╝░██║██║██║░╚██╗██║░░██║██████╔╝" \
-        "░╚═╝░░░░░╚═╝╚═╝░░╚═╝╚═════╝░░╚════╝░╚═╝░░░░░╚═╝╚═╝╚═╝░░╚═╝╚═╝░░╚═╝╚═════╝")
-
-    while IFS= read -r line; do
-        echo -e "  ${p}║${r}${line}${p}║${r}"
-    done <<< "$inner_ascii"
+        "░╚═╝░░░░░╚═╝╚═╝░░╚═╝╚═════╝░░╚════╝░╚═╝░░░░░╚═╝╚═╝╚═╝░░╚═╝╚═╝░░╚═╝╚═════╝"; do
+        len=${#line}
+        left=$(( (width - len) / 2 ))
+        right=$(( width - len - left ))
+        printf "  %b║%b%*s%s%*s%b║%b\n" "$p" "$pink" "$left" "" "$line" "$right" "" "$p" "$r"
+    done
 
     echo -e "  ${p}╠════════════════════════════════════════════════════════════════════════════╣${r}"
 
-    local inner_text
-    inner_text=$(gum style --width 76 --align center \
-        "$(echo -e "\033[38;5;${NEON_CYAN}m⛩️  システム設定  ⛩️\033[0m")" \
-        "$(echo -e "\033[38;5;${DIM}mmacOS System Configuration\033[0m")")
+    line="SYSTEM SETTINGS"
+    len=${#line}
+    left=$(( (width - len) / 2 ))
+    right=$(( width - len - left ))
+    printf "  %b║%b%*s%s%*s%b║%b\n" "$p" "$cyan" "$left" "" "$line" "$right" "" "$p" "$r"
 
-    while IFS= read -r line; do
-        echo -e "  ${p}║${r}${line}${p}║${r}"
-    done <<< "$inner_text"
+    line="macOS System Configuration"
+    len=${#line}
+    left=$(( (width - len) / 2 ))
+    right=$(( width - len - left ))
+    printf "  %b║%b%*s%s%*s%b║%b\n" "$p" "$dim" "$left" "" "$line" "$right" "" "$p" "$r"
 
     echo -e "  ${p}╚════════════════════════════════════════════════════════════════════════════╝${r}"
     echo ""
@@ -224,6 +417,13 @@ phase_header() {
     local total="$2"
     local title="$3"
     local subtitle="$4"
+
+    if [[ "$UI_MODE" != "fancy" ]]; then
+        echo
+        gum style --foreground "$NEON_PINK" --bold "[$num/$total] $title"
+        gum style --foreground "$DIM" "  $subtitle"
+        return
+    fi
 
     local c="\033[38;5;${NEON_CYAN}m"
     local r="\033[0m"
@@ -246,26 +446,85 @@ phase_header() {
 run_ansible() {
     local tags="$1"
     local desc="$2"
+    local phase_log
+    local rc
 
-    cd "$REPO_DIR/ansible"
-
-    if gum spin \
-        --spinner.foreground "$NEON_PINK" \
-        --title.foreground "$NEON_CYAN" \
-        --spinner dot \
-        --title "  処理中... $desc" \
-        -- bash -c "uv run --extra dev ansible-playbook -i inventory.yml playbook.yml \
-            -e 'config_file=$CONFIG_FILE' \
-            --tags '$tags' >> '$LOG_FILE' 2>&1"; then
-        gum style --foreground "$NEON_GREEN" "  ✓ 完了"
-        return 0
-    else
-        gum style --foreground "$NEON_RED" "  ✗ 失敗 - $LOG_FILE"
+    phase_log="$(mktemp -t "macmikase-${tags}")"
+    if [[ -z "$phase_log" ]]; then
+        log_line "ERROR" "Failed to create temporary phase log for tag=$tags"
+        gum style --foreground "$NEON_RED" "  ✗ 失敗 - unable to create temporary log file"
         return 1
     fi
+
+    cd "$REPO_DIR/ansible"
+    log_line "INFO" "Starting phase tag=$tags desc=$desc"
+
+    # Homebrew can require sudo password entry; run in foreground with TTY so prompts work.
+    if [[ "$tags" == "homebrew" ]] && has_cask_installs; then
+        gum style --foreground "$DIM" "  Running homebrew phase in foreground (sudo prompts enabled)"
+        uv run --extra dev ansible-playbook -i inventory.yml playbook.yml \
+            -e "config_file=$CONFIG_FILE" \
+            --tags "$tags" \
+            2>&1 | tee "$phase_log"
+        rc=${pipestatus[1]}
+    else
+        gum spin \
+            --spinner.foreground "$NEON_PINK" \
+            --title.foreground "$NEON_CYAN" \
+            --spinner dot \
+            --title "  処理中... $desc" \
+            -- zsh -c "uv run --extra dev ansible-playbook -i inventory.yml playbook.yml \
+                -e 'config_file=$CONFIG_FILE' \
+                --tags '$tags' > '$phase_log' 2>&1"
+        rc=$?
+    fi
+
+    if [[ "$rc" -eq 0 ]]; then
+        cat "$phase_log" >> "$LOG_FILE"
+
+        # Guardrail: a tagged phase must execute role tasks, not only include_role.
+        if ! grep -q "TASK \\[$tags :" "$phase_log"; then
+            log_line "ERROR" "Phase tag=$tags executed no role tasks (possible tag propagation issue)."
+            gum style --foreground "$NEON_RED" "  ✗ 失敗 - no role tasks executed for '$tags' (see $LOG_FILE)"
+            rm -f "$phase_log"
+            return 1
+        fi
+
+        if grep -Eq "failed=[1-9]|unreachable=[1-9]" "$phase_log"; then
+            log_line "ERROR" "Phase tag=$tags reported failures in recap despite success exit code."
+            gum style --foreground "$NEON_RED" "  ✗ 失敗 - failures detected in '$tags' recap (see $LOG_FILE)"
+            rm -f "$phase_log"
+            return 1
+        fi
+
+        log_line "INFO" "Completed phase tag=$tags successfully"
+        rm -f "$phase_log"
+        gum style --foreground "$NEON_GREEN" "  ✓ 完了"
+        return 0
+    fi
+
+    cat "$phase_log" >> "$LOG_FILE"
+    log_line "ERROR" "Phase tag=$tags failed"
+    rm -f "$phase_log"
+    gum style --foreground "$NEON_RED" "  ✗ 失敗 - $LOG_FILE"
+    return 1
 }
 
 success_banner() {
+    if [[ "$UI_MODE" != "fancy" ]]; then
+        echo
+        gum style --foreground "$NEON_GREEN" --bold "Install complete!"
+        echo
+        gum style --foreground "$NEON_CYAN" "  次のステップ:"
+        echo ""
+        gum style --foreground "$DIM" "    exec zsh -l             シェルを再読み込み"
+        gum style --foreground "$DIM" "    macmikase-theme <name>  テーマを変更"
+        gum style --foreground "$DIM" "    macmikase               メニュー"
+        gum style --foreground "$DIM" "    $LOG_FILE"
+        echo ""
+        return
+    fi
+
     local g="\033[38;5;${NEON_GREEN}m"
     local r="\033[0m"
 
@@ -310,6 +569,14 @@ success_banner() {
 }
 
 error_banner() {
+    if [[ "$UI_MODE" != "fancy" ]]; then
+        echo
+        gum style --foreground "$NEON_RED" --bold "Install failed."
+        gum style --foreground "$DIM" "  $LOG_FILE"
+        echo ""
+        return
+    fi
+
     local red="\033[38;5;${NEON_RED}m"
     local r="\033[0m"
 
@@ -339,19 +606,6 @@ main() {
     resolve_repo_dir
     validate_inputs
 
-    banner
-
-    gum style --foreground "$DIM" "  設定: $CONFIG_FILE"
-    echo ""
-
-    if ! gum confirm \
-        --prompt.foreground "$NEON_CYAN" \
-        --selected.background "$NEON_PURPLE" \
-        "  インストールを開始しますか?"; then
-        gum style --foreground "$NEON_ORANGE" "  キャンセル"
-        exit 0
-    fi
-
     {
         echo "=== MACMIKASE INSTALL LOG ==="
         echo "Started: $(date)"
@@ -359,21 +613,65 @@ main() {
         echo "Config: $CONFIG_FILE"
         echo ""
     } > "$LOG_FILE"
+    log_line "INFO" "Installer started"
+    trap 'stop_sudo_keepalive' EXIT
 
-    ensure_ansible_collections || { error_banner; exit 1; }
+    banner
+
+    gum style --foreground "$DIM" "  設定: $CONFIG_FILE"
+    show_install_plan
+    echo ""
+
+    if ! gum confirm \
+        --prompt.foreground "$NEON_CYAN" \
+        --selected.background "$NEON_PURPLE" \
+        "  インストールを開始しますか?"; then
+        log_line "INFO" "Installer cancelled by user at confirmation"
+        gum style --foreground "$NEON_ORANGE" "  キャンセル"
+        exit 0
+    fi
+
+    ensure_sudo_session || {
+        log_line "ERROR" "Install aborted before phases due to sudo authentication failure"
+        error_banner
+        exit 1
+    }
+
+    ensure_ansible_collections || {
+        log_line "ERROR" "Ansible collections step failed"
+        error_banner
+        exit 1
+    }
 
     phase_header "1" "4" "Homebrew" "Formulae, casks, fonts"
-    run_ansible "homebrew" "homebrew" || { error_banner; exit 1; }
+    run_ansible "homebrew" "homebrew" || {
+        log_line "ERROR" "Install aborted during homebrew phase"
+        error_banner
+        exit 1
+    }
 
     phase_header "2" "4" "Runtimes" "Rust, Go, Node, uv tools"
-    run_ansible "runtimes" "runtimes" || { error_banner; exit 1; }
+    run_ansible "runtimes" "runtimes" || {
+        log_line "ERROR" "Install aborted during runtimes phase"
+        error_banner
+        exit 1
+    }
 
     phase_header "3" "4" "Web Apps" "macOS app wrappers"
-    run_ansible "web" "web" || { error_banner; exit 1; }
+    run_ansible "web" "web" || {
+        log_line "ERROR" "Install aborted during web phase"
+        error_banner
+        exit 1
+    }
 
     phase_header "4" "4" "Dotfiles" "Shell, editor configs"
-    run_ansible "dotfiles" "dotfiles" || { error_banner; exit 1; }
+    run_ansible "dotfiles" "dotfiles" || {
+        log_line "ERROR" "Install aborted during dotfiles phase"
+        error_banner
+        exit 1
+    }
 
+    log_line "INFO" "Installer completed successfully"
     success_banner
 }
 

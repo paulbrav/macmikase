@@ -66,11 +66,11 @@ install-verbose:
 	@echo "║  Task timing is shown - longer tasks will display elapsed time     ║"
 	@echo "╚═══════════════════════════════════════════════════════════════════╝"
 	@echo ""
-	cd $(ANSIBLE_DIR) && $(UV) run ansible-playbook -i inventory.yml playbook.yml -e "config_file=$(realpath $(CONFIG_FILE))"
+	cd $(ANSIBLE_DIR) && $(UV) run --extra dev ansible-playbook -i inventory.yml playbook.yml -e "config_file=$(realpath $(CONFIG_FILE))"
 
 dry-run:
 	@echo "==> Running Ansible in check mode (no changes)..."
-	cd $(ANSIBLE_DIR) && $(UV) run ansible-playbook -i inventory.yml playbook.yml --check -e "config_file=$(realpath $(CONFIG_FILE))"
+	cd $(ANSIBLE_DIR) && $(UV) run --extra dev ansible-playbook -i inventory.yml playbook.yml --check -e "config_file=$(realpath $(CONFIG_FILE))"
 
 update:
 	@echo "==> Running system update..."
@@ -100,7 +100,7 @@ lint-python:
 
 lint-ansible:
 	@echo "==> Running ansible-lint..."
-	cd $(ANSIBLE_DIR) && $(UV) run ansible-lint playbook.yml
+	cd $(ANSIBLE_DIR) && $(UV) run --extra dev ansible-lint playbook.yml
 
 fmt:
 	@echo "==> Formatting Python code..."

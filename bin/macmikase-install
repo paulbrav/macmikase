@@ -154,7 +154,7 @@ run_ansible() {
         --title.foreground "$NEON_CYAN" \
         --spinner dot \
         --title "  処理中... $desc" \
-        -- bash -c "uv run ansible-playbook -i inventory.yml playbook.yml \
+        -- bash -c "uv run --extra dev ansible-playbook -i inventory.yml playbook.yml \
             -e 'config_file=$CONFIG_FILE' \
             --tags '$tags' >> '$LOG_FILE' 2>&1"; then
         gum style --foreground "$NEON_GREEN" "  ✓ 完了"

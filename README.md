@@ -111,6 +111,11 @@ macmikase
 
 Edit `macmikase.yaml` to customize your installation.
 
+## Documentation
+
+- Ghostty quick terminal setup and troubleshooting: `docs/ghostty-quick-terminal.md`
+- General troubleshooting: `docs/troubleshooting.md`
+
 ## API Keys & Secrets
 
 **Never commit secrets to version control.** The bashrc sources several local files for secrets and machine-specific config:

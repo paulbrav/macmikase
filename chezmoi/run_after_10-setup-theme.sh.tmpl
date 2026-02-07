@@ -22,6 +22,42 @@ if [[ ! -d "$THEME_PATH" ]]; then
     exit 0
 fi
 
+# Apply macOS wallpaper from theme manifest (if available)
+if [[ -f "$THEME_PATH/theme.yaml" ]]; then
+    WALLPAPER_REL=$(
+        awk -F': *' '$1=="wallpaper"{print $2; exit}' "$THEME_PATH/theme.yaml" \
+            | sed 's/^"//; s/"$//'
+    )
+    if [[ -n "${WALLPAPER_REL:-}" ]]; then
+        WALLPAPER_PATH="$THEME_PATH/$WALLPAPER_REL"
+        if [[ -f "$WALLPAPER_PATH" ]]; then
+            if command -v osascript >/dev/null 2>&1; then
+                if WALLPAPER_RESULT=$(osascript - "$WALLPAPER_PATH" 2>&1 <<'APPLESCRIPT'
+on run argv
+    set wallpaperPath to POSIX file (item 1 of argv) as alias
+    tell application "System Events"
+        repeat with d in desktops
+            set picture of d to wallpaperPath
+        end repeat
+    end tell
+end run
+APPLESCRIPT
+                ); then
+                    if [[ "$WALLPAPER_RESULT" != *"missing value"* ]]; then
+                        echo "  - Set desktop wallpaper"
+                    else
+                        echo "  - Warning: Failed to set desktop wallpaper (received missing value)"
+                    fi
+                else
+                    echo "  - Warning: Failed to set desktop wallpaper (check macOS Automation permissions)"
+                fi
+            fi
+        else
+            echo "  - Warning: Wallpaper file not found at $WALLPAPER_PATH"
+        fi
+    fi
+fi
+
 # Copy btop theme to btop themes directory
 if [[ -f "$THEME_PATH/btop.theme" ]]; then
     mkdir -p ~/.config/btop/themes
